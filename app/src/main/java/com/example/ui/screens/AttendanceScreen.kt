@@ -118,6 +118,7 @@ fun TeacherAttendanceView(
     }
 
     val presentCount = studentStatuses.values.count { it == "present" }
+    val tardyCount = studentStatuses.values.count { it == "tardy" }
     val absentCount = studentStatuses.values.count { it == "absent" }
 
     var showConfirmDialog by remember { mutableStateOf(false) }
@@ -133,7 +134,7 @@ fun TeacherAttendanceView(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
             ) {
-                Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -166,8 +167,8 @@ fun TeacherAttendanceView(
 
         // Header with live counts
         Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = RoundedCornerShape(12.dp)
         ) {
             Row(
@@ -206,6 +207,14 @@ fun TeacherAttendanceView(
                     ) {
                         Text("Absent: $absentCount", color = Color(0xFFC62828), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFFFF3E0))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("Tardy: $tardyCount", color = Color(0xFFE65100), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -218,17 +227,14 @@ fun TeacherAttendanceView(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(enrolledStudents) { student ->
-                val isPresent = studentStatuses[student.id] == "present"
+                val currentStatus = studentStatuses[student.id] ?: "present"
+                val containerColor = when(currentStatus) { "present" -> Color(0xFFF1F8E9); "absent" -> Color(0xFFFFEBEE); else -> Color(0xFFFFF3E0) }
+                val iconColor = when(currentStatus) { "present" -> Color(0xFF81C784); "absent" -> Color(0xFFE57373); else -> Color(0xFFFFB74D) }
 
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            studentStatuses[student.id] = if (isPresent) "absent" else "present"
-                        },
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isPresent) Color(0xFFF1F8E9) else Color(0xFFFFEBEE)
-                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = containerColor),
+
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Row(
@@ -243,7 +249,7 @@ fun TeacherAttendanceView(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(if (isPresent) Color(0xFF81C784) else Color(0xFFE57373)),
+                                    .background(iconColor),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -268,22 +274,24 @@ fun TeacherAttendanceView(
                             }
                         }
 
-                        // Toggle status indicator button
-                        Button(
-                            onClick = {
-                                studentStatuses[student.id] = if (isPresent) "absent" else "present"
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isPresent) Color(0xFF2E7D32) else Color(0xFFC62828)
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Text(
-                                text = if (isPresent) "PRESENT" else "ABSENT",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            FilterChip(
+                                selected = currentStatus == "present",
+                                onClick = { studentStatuses[student.id] = "present" },
+                                label = { Text("P", fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFC8E6C9), selectedLabelColor = Color(0xFF2E7D32))
+                            )
+                            FilterChip(
+                                selected = currentStatus == "tardy",
+                                onClick = { studentStatuses[student.id] = "tardy" },
+                                label = { Text("T", fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFE0B2), selectedLabelColor = Color(0xFFE65100))
+                            )
+                            FilterChip(
+                                selected = currentStatus == "absent",
+                                onClick = { studentStatuses[student.id] = "absent" },
+                                label = { Text("A", fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFCDD2), selectedLabelColor = Color(0xFFC62828))
                             )
                         }
                     }
@@ -292,6 +300,12 @@ fun TeacherAttendanceView(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
+
+        val summaryText = buildString {
+            append("$presentCount Present")
+            if (tardyCount > 0) append(", $tardyCount Tardy")
+            append(", $absentCount Absent")
+        }
 
         Button(
             onClick = { showConfirmDialog = true },
@@ -302,7 +316,7 @@ fun TeacherAttendanceView(
         ) {
             Icon(Icons.Default.Save, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Save Attendance ($presentCount Present, $absentCount Absent)")
+            Text("Save Attendance ($summaryText)")
         }
     }
 
@@ -311,7 +325,12 @@ fun TeacherAttendanceView(
             onDismissRequest = { showConfirmDialog = false },
             title = { Text("Confirm Attendance Submission") },
             text = {
-                Text("Are you sure you want to finalize official attendance for ${selectedSubject.name}? Total Present: $presentCount, Absent: $absentCount.")
+                val detailStr = buildString {
+                    append("Total Present: $presentCount")
+                    if (tardyCount > 0) append(", Tardy: $tardyCount")
+                    append(", Absent: $absentCount")
+                }
+                Text("Are you sure you want to finalize official attendance for ${selectedSubject.name}? $detailStr.")
             },
             confirmButton = {
                 Button(onClick = {
@@ -328,143 +347,334 @@ fun TeacherAttendanceView(
     }
 }
 
+data class StudentAttendanceHistoryItem(
+    val sessionId: String,
+    val date: String,
+    val subjectName: String,
+    val status: String,
+    val createdAt: String
+)
+
 @Composable
 fun StudentAttendanceView(
     user: User,
     repository: ClassHubRepository
 ) {
-    val attendanceSummaries = remember(user) {
-        repository.getStudentAttendanceSummaries(user.id)
-    }
+    val sessions by repository.attendanceSessions.collectAsState()
+    val records by repository.attendanceRecords.collectAsState()
+    val subjects by repository.subjects.collectAsState()
     val settings by repository.settings.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Safe-to-Bunk Formula Explained Card
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Calculate, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Safe-to-Bunk Calculator Engine",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Calculation: floor( A + R - threshold * (H + R) )",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = "• A: Classes attended so far\n• H: Total classes held so far\n• R: Classes remaining before semester end (${settings.semesterEndDate})\n• Threshold: ${settings.minAttendancePercent}% minimum requirement",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
-                        lineHeight = 16.sp
-                    )
-                }
-            }
+    val attendanceSummaries = remember(user, sessions, records) {
+        repository.getStudentAttendanceSummaries(user.id)
+    }
+
+    var studentTab by remember { mutableStateOf(0) }
+    var selectedSubjectFilter by remember { mutableStateOf("all") }
+    var selectedStatusFilter by remember { mutableStateOf("all") }
+
+    // Prepare chronological session history for this student
+    val historyItems = remember(user, sessions, records, subjects) {
+        val studentRecords = records.filter { it.studentId == user.id }
+        studentRecords.mapNotNull { rec ->
+            val sess = sessions.find { it.id == rec.sessionId } ?: return@mapNotNull null
+            val sub = subjects.find { it.id == sess.subjectId }
+            StudentAttendanceHistoryItem(
+                sessionId = sess.id,
+                date = sess.date,
+                subjectName = sub?.name ?: "Unknown Subject",
+                status = rec.status,
+                createdAt = sess.createdAt
+            )
+        }.sortedByDescending { it.date }
+    }
+
+    val filteredHistory = remember(historyItems, selectedSubjectFilter, selectedStatusFilter) {
+        historyItems.filter { item ->
+            val matchSubject = selectedSubjectFilter == "all" || item.subjectName == selectedSubjectFilter
+            val matchStatus = selectedStatusFilter == "all" || item.status.equals(selectedStatusFilter, ignoreCase = true)
+            matchSubject && matchStatus
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = studentTab) {
+            Tab(
+                selected = studentTab == 0,
+                onClick = { studentTab = 0 },
+                text = { Text("Overview & Calculator") }
+            )
+            Tab(
+                selected = studentTab == 1,
+                onClick = { studentTab = 1 },
+                text = { Text("Attendance History (${historyItems.size})") }
+            )
         }
 
-        // Subject Breakdown Cards
-        items(attendanceSummaries) { item ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        if (studentTab == 0) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                // Safe-to-Bunk Formula Explained Card
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Calculate, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Safe-to-Bunk Calculator", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Formula: Keeps your attendance above ${settings.minAttendancePercent}%. Shows how many classes you can skip based on current schedule.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
+
+                // Subject Breakdown Cards
+                items(attendanceSummaries) { item ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = item.subject.name,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                    Text(
+                                        text = "${item.attendedCount} / ${item.heldCount} classes attended" + (if (item.tardyCount > 0) " (${item.tardyCount} tardy)" else ""),
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                // Percentage & Status
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "${item.percentage}%",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (item.percentage >= 75) Color(0xFF2E7D32) else Color(0xFFC62828)
+                                    )
+                                    Text(
+                                        text = if (item.percentage >= 75) "Healthy" else "At Risk",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (item.percentage >= 75) Color(0xFF2E7D32) else Color(0xFFC62828)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Safe Skips Indicator
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (item.safeSkips <= 1) Color(0xFFFFEBEE) else Color(0xFFE8F5E9))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        if (item.safeSkips <= 1) Icons.Default.Warning else Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = if (item.safeSkips <= 1) Color(0xFFD32F2F) else Color(0xFF2E7D32),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Safe to miss:",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                Text(
+                                    text = "${item.safeSkips} more class(es)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (item.safeSkips <= 1) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+                                )
+                            }
+
+                            if (item.safeSkips <= 1) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Warning: One more absence will put your semester exam eligibility at risk!",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFC62828),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // Tab 1: Attendance History Log
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // Status Filter Chips
+                Text("Filter by Status:", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("all" to "All", "present" to "Present", "tardy" to "Tardy", "absent" to "Absent").forEach { (key, label) ->
+                        FilterChip(
+                            selected = selectedStatusFilter == key,
+                            onClick = { selectedStatusFilter = key },
+                            label = { Text(label, fontSize = 12.sp) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Subject Filter Chips
+                val enrolledSubjectNames = remember(attendanceSummaries) {
+                    attendanceSummaries.map { it.subject.name }
+                }
+                if (enrolledSubjectNames.isNotEmpty()) {
+                    Text("Filter by Subject:", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column {
-                            Text(
-                                text = item.subject.name,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                            Text(
-                                text = "${item.attendedCount} / ${item.heldCount} classes attended",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        // Percentage & Status
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "${item.percentage}%",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (item.percentage >= 75) Color(0xFF2E7D32) else Color(0xFFC62828)
-                            )
-                            Text(
-                                text = if (item.percentage >= 75) "Healthy" else "At Risk",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (item.percentage >= 75) Color(0xFF2E7D32) else Color(0xFFC62828)
+                        FilterChip(
+                            selected = selectedSubjectFilter == "all",
+                            onClick = { selectedSubjectFilter = "all" },
+                            label = { Text("All Subjects", fontSize = 12.sp) }
+                        )
+                        enrolledSubjectNames.forEach { subName ->
+                            FilterChip(
+                                selected = selectedSubjectFilter == subName,
+                                onClick = { selectedSubjectFilter = subName },
+                                label = { Text(subName.take(15), fontSize = 12.sp) }
                             )
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                    // Safe Skips Indicator
-                    Row(
+                if (filteredHistory.isEmpty()) {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (item.safeSkips <= 1) Color(0xFFFFEBEE) else Color(0xFFE8F5E9))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (item.safeSkips <= 1) Icons.Default.Warning else Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = if (item.safeSkips <= 1) Color(0xFFD32F2F) else Color(0xFF2E7D32),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Safe to miss:",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Text(
-                            text = "${item.safeSkips} more class(es)",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (item.safeSkips <= 1) Color(0xFFD32F2F) else Color(0xFF2E7D32)
-                        )
+                        Text("No attendance records found matching filters.", color = Color.Gray, fontSize = 14.sp)
                     }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(filteredHistory) { hist ->
+                            val statusBg = when (hist.status.lowercase()) {
+                                "present" -> Color(0xFFE8F5E9)
+                                "tardy" -> Color(0xFFFFF3E0)
+                                else -> Color(0xFFFFEBEE)
+                            }
+                            val statusColor = when (hist.status.lowercase()) {
+                                "present" -> Color(0xFF2E7D32)
+                                "tardy" -> Color(0xFFE65100)
+                                else -> Color(0xFFC62828)
+                            }
+                            val statusIcon = when (hist.status.lowercase()) {
+                                "present" -> Icons.Default.CheckCircle
+                                "tardy" -> Icons.Default.Schedule
+                                else -> Icons.Default.Cancel
+                            }
 
-                    if (item.safeSkips <= 1) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Warning: One more absence will put your semester exam eligibility at risk!",
-                            fontSize = 11.sp,
-                            color = Color(0xFFC62828),
-                            fontWeight = FontWeight.Medium
-                        )
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape)
+                                                .background(statusBg),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                statusIcon,
+                                                contentDescription = hist.status,
+                                                tint = statusColor,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text(
+                                                text = hist.subjectName,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                            Text(
+                                                text = "Session Date: ${hist.date}",
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(statusBg)
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = hist.status.replaceFirstChar { it.uppercase() },
+                                            color = statusColor,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

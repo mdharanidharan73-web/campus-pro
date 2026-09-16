@@ -14,6 +14,7 @@ import kotlin.math.min
 data class SubjectAttendanceSummary(
     val subject: Subject,
     val attendedCount: Int,
+    val tardyCount: Int = 0,
     val heldCount: Int,
     val percentage: Int,
     val safeSkips: Int,
@@ -546,8 +547,9 @@ class ClassHubRepository private constructor() {
             val subSessionIds = subSessions.map { it.id }
             val studentRecords = records.filter { it.studentId == studentId && it.sessionId in subSessionIds }
 
-            val attendedCount = studentRecords.count { it.status == "present" }
+            val attendedCount = studentRecords.count { it.status == "present" || it.status == "tardy" }
             val heldCount = subSessions.size
+            val tardyCount = studentRecords.count { it.status == "tardy" }
             val percentage = if (heldCount > 0) ((attendedCount.toDouble() / heldCount.toDouble()) * 100).toInt() else 100
 
             // Estimate R (remaining sessions in semester, approx 20 remaining)
@@ -567,6 +569,7 @@ class ClassHubRepository private constructor() {
                 subject = subject,
                 attendedCount = attendedCount,
                 heldCount = heldCount,
+                tardyCount = tardyCount,
                 percentage = percentage,
                 safeSkips = safeSkips,
                 isWarning = isWarning,
