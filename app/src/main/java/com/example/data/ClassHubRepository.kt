@@ -1,0 +1,773 @@
+package com.example.data
+
+import com.example.model.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.min
+
+data class SubjectAttendanceSummary(
+    val subject: Subject,
+    val attendedCount: Int,
+    val heldCount: Int,
+    val percentage: Int,
+    val safeSkips: Int,
+    val isWarning: Boolean,
+    val trendHistory: List<Int> // e.g. [90, 88, 85, 82]
+)
+
+data class NextClassInfo(
+    val subject: Subject,
+    val slot: TimetableSlot,
+    val effectiveRoom: String,
+    val overrideStatus: String?, // "room_changed", "rescheduled", etc.
+    val overrideNote: String?,
+    val formattedTime: String,
+    val countdownText: String
+)
+
+class ClassHubRepository private constructor() {
+
+    companion object {
+        val instance = ClassHubRepository()
+    }
+
+    // App Settings
+    private val _settings = MutableStateFlow(AppSettings(minAttendancePercent = 75, semesterEndDate = "2026-12-15"))
+    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
+
+    // Current User Session
+    private val _currentUser = MutableStateFlow<User?>(null)
+    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+
+    // Roster allowlist
+    private val _rosterAllowlist = MutableStateFlow<List<RosterAllowlist>>(emptyList())
+    val rosterAllowlist: StateFlow<List<RosterAllowlist>> = _rosterAllowlist.asStateFlow()
+
+    // Users
+    private val _allUsers = MutableStateFlow<List<User>>(emptyList())
+    val allUsers: StateFlow<List<User>> = _allUsers.asStateFlow()
+
+    // Subjects
+    private val _subjects = MutableStateFlow<List<Subject>>(emptyList())
+    val subjects: StateFlow<List<Subject>> = _subjects.asStateFlow()
+
+    // Subject Enrollments
+    private val _enrollments = MutableStateFlow<List<SubjectEnrollment>>(emptyList())
+    val enrollments: StateFlow<List<SubjectEnrollment>> = _enrollments.asStateFlow()
+
+    // CR Permissions
+    private val _crPermissions = MutableStateFlow<List<CRPermission>>(emptyList())
+    val crPermissions: StateFlow<List<CRPermission>> = _crPermissions.asStateFlow()
+
+    // Timetable Slots
+    private val _timetableSlots = MutableStateFlow<List<TimetableSlot>>(emptyList())
+    val timetableSlots: StateFlow<List<TimetableSlot>> = _timetableSlots.asStateFlow()
+
+    // Timetable Overrides
+    private val _timetableOverrides = MutableStateFlow<List<TimetableOverride>>(emptyList())
+    val timetableOverrides: StateFlow<List<TimetableOverride>> = _timetableOverrides.asStateFlow()
+
+    // Attendance Sessions & Records
+    private val _attendanceSessions = MutableStateFlow<List<AttendanceSession>>(emptyList())
+    val attendanceSessions: StateFlow<List<AttendanceSession>> = _attendanceSessions.asStateFlow()
+
+    private val _attendanceRecords = MutableStateFlow<List<AttendanceRecord>>(emptyList())
+    val attendanceRecords: StateFlow<List<AttendanceRecord>> = _attendanceRecords.asStateFlow()
+
+    // Rooms & Messages
+    private val _rooms = MutableStateFlow<List<Room>>(emptyList())
+    val rooms: StateFlow<List<Room>> = _rooms.asStateFlow()
+
+    private val _messages = MutableStateFlow<List<Message>>(emptyList())
+    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
+
+    // Stretch: Assignments
+    private val _assignments = MutableStateFlow<List<Assignment>>(emptyList())
+    val assignments: StateFlow<List<Assignment>> = _assignments.asStateFlow()
+
+    private val _assignmentStatuses = MutableStateFlow<List<AssignmentStatus>>(emptyList())
+    val assignmentStatuses: StateFlow<List<AssignmentStatus>> = _assignmentStatuses.asStateFlow()
+
+    // Stretch: Resources
+    private val _resources = MutableStateFlow<List<ResourceItem>>(emptyList())
+    val resources: StateFlow<List<ResourceItem>> = _resources.asStateFlow()
+
+    // Events
+    private val _events = MutableStateFlow<List<com.example.model.EventPost>>(emptyList())
+    val events: StateFlow<List<com.example.model.EventPost>> = _events.asStateFlow()
+
+    init {
+        seedAllData()
+    }
+
+    private fun seedAllData() {
+        // 1. Roster Allowlist for BCA001 to BCA033
+        val studentNames = listOf(
+            "Aarav Patel", "Aditi Sharma", "Priya Sundaram", "Rohan Gupta", "Sneha Reddy",
+            "Vikram Singh", "Rahul Verma", "Ananya Rao", "Karthik Iyer", "Meera Krishnan",
+            "Nikhil Joshi", "Pooja Hegde", "Divya Nair", "Arjun Menon", "Varun Prabhu",
+            "Ritu Bhat", "Sanjay Kumar", "Deepa Pillai", "Manoj Gowda", "Swathi Shetty",
+            "Pranav Deshmukh", "Kavya Raman", "Harish Chandra", "Keerthi V", "Chetan Rao",
+            "Shalini Murthy", "Abhinav Das", "Bhavana N", "Tejaswini K", "Naveen Kumar",
+            "Lavanya M", "Gautam Sen", "Sandhya R"
+        )
+
+        val allowlist = studentNames.mapIndexed { idx, name ->
+            val roll = String.format("BCA%03d", idx + 1)
+            RosterAllowlist(rollNo = roll, fullName = name, claimed = idx < 10) // First 10 claimed in seed
+        }
+        _rosterAllowlist.value = allowlist
+
+        // 2. Teachers
+        val teacher1 = User(
+            id = "teach_01",
+            fullName = "Prof. Rajesh Sharma",
+            role = "teacher",
+            email = "sharma@classhub.edu",
+            createdAt = "2026-08-01"
+        )
+        val teacher2 = User(
+            id = "teach_02",
+            fullName = "Dr. Meenakshi Sundaram",
+            role = "teacher",
+            email = "meenakshi@classhub.edu",
+            createdAt = "2026-08-01"
+        )
+
+        // 3. Students
+        val studentUsers = studentNames.mapIndexed { idx, name ->
+            val roll = String.format("BCA%03d", idx + 1)
+            val role = if (roll == "BCA003") "cr" else "student" // BCA003 Priya is CR!
+            User(
+                id = "student_$roll",
+                fullName = name,
+                rollNo = roll,
+                role = role,
+                email = "${roll.lowercase()}@classhub.edu",
+                createdAt = "2026-08-05"
+            )
+        }
+
+        val allUserList = listOf(teacher1, teacher2) + studentUsers
+        _allUsers.value = allUserList
+
+        // Default login to Student Rahul Verma (BCA007) for initial load
+        _currentUser.value = studentUsers.find { it.rollNo == "BCA007" }
+
+        // 4. Subjects
+        val subDbms = Subject("sub_dbms", "DBMS", teacher1.id, teacher1.fullName, isCommon = true)
+        val subPython = Subject("sub_python", "Python Programming", teacher2.id, teacher2.fullName, isCommon = true)
+        val subWeb = Subject("sub_web", "Web Development", teacher1.id, teacher1.fullName, isCommon = true)
+        val subKan = Subject("sub_kannada", "Kannada", teacher2.id, teacher2.fullName, isCommon = false)
+        val subTam = Subject("sub_tamil", "Tamil", teacher2.id, teacher2.fullName, isCommon = false)
+        val subSan = Subject("sub_sanskrit", "Sanskrit", teacher2.id, teacher2.fullName, isCommon = false)
+        val subjectList = listOf(subDbms, subPython, subWeb, subKan, subTam, subSan)
+        _subjects.value = subjectList
+
+        // 5. Enrollments
+        val enrollmentList = mutableListOf<SubjectEnrollment>()
+        // Common subjects: All 33 students enrolled
+        studentUsers.forEach { st ->
+            enrollmentList.add(SubjectEnrollment(st.id, subDbms.id))
+            enrollmentList.add(SubjectEnrollment(st.id, subPython.id))
+            enrollmentList.add(SubjectEnrollment(st.id, subWeb.id))
+        }
+        // Split language enrollment realistically
+        studentUsers.forEachIndexed { idx, st ->
+            when (idx % 3) {
+                0 -> enrollmentList.add(SubjectEnrollment(st.id, subKan.id)) // 11 in Kannada
+                1 -> enrollmentList.add(SubjectEnrollment(st.id, subTam.id)) // 11 in Tamil
+                2 -> enrollmentList.add(SubjectEnrollment(st.id, subSan.id)) // 11 in Sanskrit
+            }
+        }
+        _enrollments.value = enrollmentList
+
+        // 6. CR Permissions
+        // Priya Sundaram (student_BCA003) has CR permissions for DBMS ONLY!
+        _crPermissions.value = listOf(
+            CRPermission(
+                userId = "student_BCA003",
+                subjectId = subDbms.id,
+                canMarkAttendance = true,
+                canModerateRoom = true
+            )
+        )
+
+        // 7. Timetable (Monday = 1, Tuesday = 2, ... Saturday = 6)
+        val slots = listOf(
+            // Monday
+            TimetableSlot("slot_m1", subDbms.id, 1, "09:00", "10:00", "Room 204"),
+            TimetableSlot("slot_m2", subPython.id, 1, "10:15", "11:15", "Lab 2"),
+            TimetableSlot("slot_m3", subWeb.id, 1, "11:30", "12:30", "Room 204"),
+            TimetableSlot("slot_m4", subKan.id, 1, "13:30", "14:30", "Room 101"),
+            TimetableSlot("slot_m5", subTam.id, 1, "13:30", "14:30", "Room 102"),
+            TimetableSlot("slot_m6", subSan.id, 1, "13:30", "14:30", "Room 103"),
+
+            // Tuesday
+            TimetableSlot("slot_t1", subPython.id, 2, "09:00", "10:00", "Lab 2"),
+            TimetableSlot("slot_t2", subKan.id, 2, "10:15", "11:15", "Room 101"),
+            TimetableSlot("slot_t3", subTam.id, 2, "10:15", "11:15", "Room 102"),
+            TimetableSlot("slot_t4", subSan.id, 2, "10:15", "11:15", "Room 103"),
+            TimetableSlot("slot_t5", subDbms.id, 2, "11:30", "12:30", "Room 204"),
+            TimetableSlot("slot_t6", subWeb.id, 2, "13:30", "14:30", "Room 204"),
+
+            // Wednesday
+            TimetableSlot("slot_w1", subWeb.id, 3, "09:00", "10:00", "Lab 1"),
+            TimetableSlot("slot_w2", subDbms.id, 3, "10:15", "11:15", "Room 204"),
+            TimetableSlot("slot_w3", subPython.id, 3, "11:30", "12:30", "Lab 2"),
+
+            // Thursday
+            TimetableSlot("slot_th1", subKan.id, 4, "09:00", "10:00", "Room 101"),
+            TimetableSlot("slot_th2", subTam.id, 4, "09:00", "10:00", "Room 102"),
+            TimetableSlot("slot_th3", subSan.id, 4, "09:00", "10:00", "Room 103"),
+            TimetableSlot("slot_th4", subWeb.id, 4, "10:15", "11:15", "Room 204"),
+            TimetableSlot("slot_th5", subDbms.id, 4, "11:30", "12:30", "Room 204"),
+
+            // Friday
+            TimetableSlot("slot_f1", subPython.id, 5, "09:00", "10:00", "Lab 2"),
+            TimetableSlot("slot_f2", subDbms.id, 5, "10:15", "11:15", "Room 204"),
+            TimetableSlot("slot_f3", subWeb.id, 5, "11:30", "12:30", "Room 204"),
+
+            // Saturday
+            TimetableSlot("slot_s1", subWeb.id, 6, "09:00", "10:30", "Lab 1"),
+            TimetableSlot("slot_s2", subPython.id, 6, "10:45", "12:15", "Lab 2")
+        )
+        _timetableSlots.value = slots
+
+        // 8. Timetable Override (for demonstration: DBMS Room Changed to Room 302 today!)
+        val todayStr = LocalDate.now().toString()
+        _timetableOverrides.value = listOf(
+            TimetableOverride(
+                id = "ov_1",
+                slotId = "slot_m1",
+                date = todayStr,
+                status = "room_changed",
+                note = "Moved to Room 302 due to projector maintenance in 204"
+            )
+        )
+
+        // 9. Attendance Sessions & Records (Past 6 sessions per subject)
+        val sessions = mutableListOf<AttendanceSession>()
+        val records = mutableListOf<AttendanceRecord>()
+        val sampleDates = listOf("2026-09-01", "2026-09-03", "2026-09-05", "2026-09-08", "2026-09-10", "2026-09-12")
+
+        subjectList.forEach { sub ->
+            val enrolledStudents = studentUsers.filter { st ->
+                enrollmentList.any { it.studentId == st.id && it.subjectId == sub.id }
+            }
+
+            sampleDates.forEachIndexed { sIdx, date ->
+                val sessionId = "sess_${sub.id}_$sIdx"
+                sessions.add(
+                    AttendanceSession(
+                        id = sessionId,
+                        subjectId = sub.id,
+                        date = date,
+                        markedBy = teacher1.id,
+                        createdAt = "$date 12:00:00"
+                    )
+                )
+
+                enrolledStudents.forEachIndexed { stIdx, st ->
+                    // Make Rahul (BCA007) have ~82% in DBMS, 74% in Python (Warning!), 90% in Web Dev
+                    val isPresent = when {
+                        st.rollNo == "BCA007" && sub.id == subPython.id && sIdx in listOf(2, 4) -> false
+                        st.rollNo == "BCA007" && sub.id == subDbms.id && sIdx == 3 -> false
+                        (stIdx + sIdx) % 7 == 0 -> false // Realistic absent variation
+                        else -> true
+                    }
+                    records.add(
+                        AttendanceRecord(
+                            sessionId = sessionId,
+                            studentId = st.id,
+                            status = if (isPresent) "present" else "absent"
+                        )
+                    )
+                }
+            }
+        }
+        _attendanceSessions.value = sessions
+        _attendanceRecords.value = records
+
+        // 10. Rooms
+        val roomGlobal = Room("room_global", "global", "BCA Batch 2026 Global", null)
+        val roomDbms = Room("room_dbms", "subject", "DBMS Discussion", subDbms.id)
+        val roomPython = Room("room_python", "subject", "Python Programming Room", subPython.id)
+        val roomWeb = Room("room_web", "subject", "Web Dev Hub", subWeb.id)
+        val roomDmTeacher = Room("room_dm_sharma", "dm", "Prof. Sharma (Direct)", null, listOf("student_BCA007", teacher1.id))
+        _rooms.value = listOf(roomGlobal, roomDbms, roomPython, roomWeb, roomDmTeacher)
+
+        // 11. Messages
+        _messages.value = listOf(
+            Message(
+                id = "m1",
+                roomId = roomGlobal.id,
+                senderId = teacher1.id,
+                senderName = teacher1.fullName,
+                content = "Welcome everyone to ClassHub! Timetable and official attendance will be tracked here.",
+                isAnonymous = false,
+                createdAt = "2026-09-14 08:30",
+                isPinned = true
+            ),
+            Message(
+                id = "m2",
+                roomId = roomGlobal.id,
+                senderId = "student_BCA003",
+                senderName = "Priya Sundaram (CR)",
+                content = "Reminder: Please verify your language subject enrollments by tomorrow noon.",
+                isAnonymous = false,
+                createdAt = "2026-09-14 09:15"
+            ),
+            Message(
+                id = "m3",
+                roomId = roomDbms.id,
+                senderId = "student_BCA012",
+                senderName = "Pooja Hegde",
+                content = "Sir, will the ER-diagram lab assignment cover Boyce-Codd normal form?",
+                isAnonymous = false,
+                createdAt = "2026-09-14 11:00"
+            ),
+            Message(
+                id = "m4",
+                roomId = roomDbms.id,
+                senderId = "student_BCA007", // Real sender kept for moderation accountability!
+                senderName = "Anonymous Student",
+                content = "Could someone explain 3NF vs BCNF with a quick practical table example?",
+                isAnonymous = true,
+                createdAt = "2026-09-14 11:20"
+            ),
+            Message(
+                id = "m5",
+                roomId = roomDbms.id,
+                senderId = teacher1.id,
+                senderName = teacher1.fullName,
+                content = "Good question! BCNF requires every determinant to be a superkey. We will practice 2 examples tomorrow in Room 302.",
+                isAnonymous = false,
+                createdAt = "2026-09-14 11:45"
+            )
+        )
+
+        // 12. Assignments (Phase 5 stretch)
+        _assignments.value = listOf(
+            Assignment("asgn_1", "Relational Schema Normalization", subDbms.id, "DBMS", "Decompose table into 3NF and BCNF.", "2026-09-22"),
+            Assignment("asgn_2", "Flask REST API with PostgreSQL", subWeb.id, "Web Development", "Build CRUD endpoints for student portal.", "2026-09-25"),
+            Assignment("asgn_3", "Async I/O Coroutines in Python", subPython.id, "Python", "Solve producer-consumer problem using asyncio.", "2026-09-28")
+        )
+
+        _assignmentStatuses.value = listOf(
+            AssignmentStatus("asgn_1", "student_BCA007", true),
+            AssignmentStatus("asgn_2", "student_BCA007", false)
+        )
+
+        // 13. Resources (Phase 5 stretch)
+        _resources.value = listOf(
+            ResourceItem("res_1", "DBMS Unit 2: SQL & Normalization Handout", subDbms.id, "DBMS", "PDF"),
+            ResourceItem("res_2", "Python Data Structures & OOP Cheatsheet", subPython.id, "Python", "PDF"),
+            ResourceItem("res_3", "Responsive Web Design with Flexbox & Grid", subWeb.id, "Web Development", "PPT"),
+            ResourceItem("res_4", "Lab Manual - Semester 3 BCA Complete", subDbms.id, "DBMS", "DOC")
+        )
+
+        // 14. Events
+        _events.value = listOf(
+            com.example.model.EventPost("ev_1", "", "Annual Tech Fest announced! Dates: Oct 15-18", "Prof. Sharma", "2026-09-12"),
+            com.example.model.EventPost("ev_2", "", "Guest Lecture on AI tomorrow at 2 PM in Seminar Hall.", "Prof. Sharma", "2026-09-14")
+        )
+    }
+
+    fun addEventPost(caption: String, imageUrl: String, postedBy: String) {
+        val newEvent = com.example.model.EventPost(
+            id = "ev_${System.currentTimeMillis()}",
+            imageUrl = imageUrl,
+            caption = caption,
+            postedBy = postedBy,
+            date = java.time.LocalDate.now().toString()
+        )
+        _events.value = listOf(newEvent) + _events.value
+    }
+
+    // --- Authentication & User Operations ---
+
+    fun login(email: String, pass: String): Result<User> {
+        val user = _allUsers.value.find { it.email.equals(email.trim(), ignoreCase = true) }
+            ?: return Result.failure(Exception("No account found with email $email"))
+        _currentUser.value = user
+        return Result.success(user)
+    }
+
+    fun signup(fullName: String, rollNo: String, email: String, pass: String): Result<User> {
+        val cleanRoll = rollNo.trim().uppercase()
+        val rosterItem = _rosterAllowlist.value.find { it.rollNo.equals(cleanRoll, ignoreCase = true) }
+            ?: return Result.failure(Exception("Roll number '$cleanRoll' not found in official class allowlist."))
+
+        if (rosterItem.claimed) {
+            return Result.failure(Exception("Roll number '$cleanRoll' has already been registered."))
+        }
+
+        if (_allUsers.value.any { it.email.equals(email.trim(), ignoreCase = true) }) {
+            return Result.failure(Exception("Email already associated with an account."))
+        }
+
+        val newUser = User(
+            id = "student_$cleanRoll",
+            fullName = rosterItem.fullName, // Use the allowlisted official name as specified!
+            rollNo = cleanRoll,
+            role = if (cleanRoll == "BCA003") "cr" else "student",
+            email = email.trim(),
+            createdAt = LocalDate.now().toString()
+        )
+
+        // Mark roster claimed
+        _rosterAllowlist.value = _rosterAllowlist.value.map {
+            if (it.rollNo == cleanRoll) it.copy(claimed = true) else it
+        }
+        _allUsers.value = _allUsers.value + newUser
+        _currentUser.value = newUser
+
+        // Auto enroll in common subjects
+        val commonSubjects = _subjects.value.filter { it.isCommon }
+        val newEnrollments = commonSubjects.map { SubjectEnrollment(newUser.id, it.id) }
+        _enrollments.value = _enrollments.value + newEnrollments
+
+        return Result.success(newUser)
+    }
+
+    fun switchDemoUser(role: String, specificId: String? = null) {
+        val targetUser = when {
+            specificId != null -> _allUsers.value.find { it.id == specificId }
+            role == "teacher" -> _allUsers.value.find { it.role == "teacher" }
+            role == "cr" -> _allUsers.value.find { it.role == "cr" }
+            else -> _allUsers.value.find { it.rollNo == "BCA007" } ?: _allUsers.value.firstOrNull { it.role == "student" }
+        }
+        _currentUser.value = targetUser
+    }
+
+    fun logout() {
+        _currentUser.value = null
+    }
+
+    // --- Next Class Algorithm ---
+    fun getNextClass(studentId: String): NextClassInfo? {
+        val enrolledSubjectIds = _enrollments.value
+            .filter { it.studentId == studentId }
+            .map { it.subjectId }
+
+        val todayDayOfWeek = LocalDate.now().dayOfWeek.value // 1 = Monday ... 7 = Sunday
+        val nowTime = LocalTime.now()
+
+        val allSlots = _timetableSlots.value
+            .filter { it.subjectId in enrolledSubjectIds }
+            .sortedWith(compareBy({ it.dayOfWeek }, { it.startTime }))
+
+        if (allSlots.isEmpty()) return null
+
+        val todayStr = LocalDate.now().toString()
+        val overrides = _timetableOverrides.value.filter { it.date == todayStr }
+
+        // Look for next slot today
+        for (slot in allSlots.filter { it.dayOfWeek == todayDayOfWeek }) {
+            val override = overrides.find { it.slotId == slot.id }
+            if (override?.status == "cancelled") continue
+
+            val slotStartTime = try {
+                LocalTime.parse(slot.startTime, DateTimeFormatter.ofPattern("HH:mm"))
+            } catch (e: Exception) {
+                null
+            }
+
+            if (slotStartTime != null && slotStartTime.isAfter(nowTime)) {
+                val sub = _subjects.value.find { it.id == slot.subjectId } ?: continue
+                val effectiveRoom = if (override?.status == "room_changed") "Room 302" else slot.room
+                val minutesUntil = java.time.Duration.between(nowTime, slotStartTime).toMinutes()
+                val countdown = if (minutesUntil <= 60) "Starts in $minutesUntil min" else "Starts at ${slot.startTime}"
+
+                return NextClassInfo(
+                    subject = sub,
+                    slot = slot,
+                    effectiveRoom = effectiveRoom,
+                    overrideStatus = override?.status,
+                    overrideNote = override?.note,
+                    formattedTime = "${slot.startTime} - ${slot.endTime}",
+                    countdownText = countdown
+                )
+            }
+        }
+
+        // Otherwise return the first scheduled slot on the next active day
+        val nextSlot = allSlots.firstOrNull { it.dayOfWeek > todayDayOfWeek } ?: allSlots.first()
+        val sub = _subjects.value.find { it.id == nextSlot.subjectId } ?: return null
+        val dayName = when (nextSlot.dayOfWeek) {
+            1 -> "Monday"; 2 -> "Tuesday"; 3 -> "Wednesday"; 4 -> "Thursday"; 5 -> "Friday"; 6 -> "Saturday"; else -> "Sunday"
+        }
+
+        return NextClassInfo(
+            subject = sub,
+            slot = nextSlot,
+            effectiveRoom = nextSlot.room,
+            overrideStatus = null,
+            overrideNote = null,
+            formattedTime = "${nextSlot.startTime} - ${nextSlot.endTime}",
+            countdownText = "$dayName at ${nextSlot.startTime}"
+        )
+    }
+
+    // --- Safe-To-Bunk Calculator & Attendance Summaries ---
+    // Formula from PDF:
+    // A = classes attended so far
+    // H = classes held so far
+    // R = classes remaining on timetable before semester_end_date, excluding already-cancelled classes
+    // threshold = min_attendance_percent / 100
+    // max_safe_skips = floor( A + R - threshold * (H + R) )
+    // Clamp: 0 <= max_safe_skips <= R
+    fun calculateSafeToBunk(attendedA: Int, heldH: Int, remainingR: Int, minPercent: Int): Int {
+        if (heldH + remainingR == 0) return 0
+        val threshold = minPercent.toDouble() / 100.0
+        val rawSkips = floor(attendedA.toDouble() + remainingR.toDouble() - threshold * (heldH + remainingR).toDouble()).toInt()
+        return rawSkips.coerceIn(0, remainingR)
+    }
+
+    fun getStudentAttendanceSummaries(studentId: String): List<SubjectAttendanceSummary> {
+        val enrolledSubjectIds = _enrollments.value
+            .filter { it.studentId == studentId }
+            .map { it.subjectId }
+
+        val enrolledSubjects = _subjects.value.filter { it.id in enrolledSubjectIds }
+        val sessions = _attendanceSessions.value
+        val records = _attendanceRecords.value
+        val minPercent = _settings.value.minAttendancePercent
+
+        return enrolledSubjects.map { subject ->
+            val subSessions = sessions.filter { it.subjectId == subject.id }
+            val subSessionIds = subSessions.map { it.id }
+            val studentRecords = records.filter { it.studentId == studentId && it.sessionId in subSessionIds }
+
+            val attendedCount = studentRecords.count { it.status == "present" }
+            val heldCount = subSessions.size
+            val percentage = if (heldCount > 0) ((attendedCount.toDouble() / heldCount.toDouble()) * 100).toInt() else 100
+
+            // Estimate R (remaining sessions in semester, approx 20 remaining)
+            val remainingR = 20
+            val safeSkips = calculateSafeToBunk(attendedCount, heldCount, remainingR, minPercent)
+            val isWarning = safeSkips <= 1 || percentage < minPercent
+
+            // Simulated trend history for display
+            val trendHistory = listOf(
+                max(60, percentage + 6),
+                max(60, percentage + 3),
+                max(60, percentage + 1),
+                percentage
+            )
+
+            SubjectAttendanceSummary(
+                subject = subject,
+                attendedCount = attendedCount,
+                heldCount = heldCount,
+                percentage = percentage,
+                safeSkips = safeSkips,
+                isWarning = isWarning,
+                trendHistory = trendHistory
+            )
+        }
+    }
+
+    // --- CR Permissions Verification ---
+    fun canMarkAttendance(userId: String, subjectId: String): Boolean {
+        val user = _allUsers.value.find { it.id == userId } ?: return false
+        if (user.role == "teacher") return true
+        if (user.role == "cr") {
+            return _crPermissions.value.any { it.userId == userId && it.subjectId == subjectId && it.canMarkAttendance }
+        }
+        return false
+    }
+
+    fun canModerateRoom(userId: String, subjectId: String?): Boolean {
+        val user = _allUsers.value.find { it.id == userId } ?: return false
+        if (user.role == "teacher") return true
+        if (user.role == "cr" && subjectId != null) {
+            return _crPermissions.value.any { it.userId == userId && it.subjectId == subjectId && it.canModerateRoom }
+        }
+        return false
+    }
+
+    // --- Attendance Marking ---
+    fun markAttendance(
+        subjectId: String,
+        date: String,
+        markerUserId: String,
+        studentStatuses: Map<String, String> // studentId -> "present" / "absent"
+    ): Result<Unit> {
+        if (!canMarkAttendance(markerUserId, subjectId)) {
+            return Result.failure(Exception("Unauthorized: You do not have permission to mark attendance for this subject."))
+        }
+
+        val sessionId = "sess_${subjectId}_${System.currentTimeMillis()}"
+        val newSession = AttendanceSession(
+            id = sessionId,
+            subjectId = subjectId,
+            date = date,
+            markedBy = markerUserId,
+            createdAt = "$date 10:00:00"
+        )
+
+        val newRecords = studentStatuses.map { (studentId, status) ->
+            AttendanceRecord(
+                sessionId = sessionId,
+                studentId = studentId,
+                status = status
+            )
+        }
+
+        _attendanceSessions.value = _attendanceSessions.value + newSession
+        _attendanceRecords.value = _attendanceRecords.value + newRecords
+        return Result.success(Unit)
+    }
+
+    // --- Timetable Override ---
+    fun addTimetableOverride(slotId: String, date: String, status: String, note: String): Result<Unit> {
+        val newOverride = TimetableOverride(
+            id = "ov_${System.currentTimeMillis()}",
+            slotId = slotId,
+            date = date,
+            status = status,
+            note = note
+        )
+        _timetableOverrides.value = _timetableOverrides.value + newOverride
+        return Result.success(Unit)
+    }
+
+    // --- Messaging & Rooms ---
+    fun sendMessage(roomId: String, senderId: String, content: String, isAnonymous: Boolean): Result<Message> {
+        val sender = _allUsers.value.find { it.id == senderId }
+            ?: return Result.failure(Exception("Sender not found"))
+
+        val timeStr = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+        val dateStr = LocalDate.now().toString()
+        val newMessage = Message(
+            id = "msg_${System.currentTimeMillis()}",
+            roomId = roomId,
+            senderId = senderId,
+            senderName = if (isAnonymous) "Anonymous Student" else sender.fullName,
+            content = content,
+            isAnonymous = isAnonymous,
+            createdAt = "$dateStr $timeStr",
+            isPinned = false
+        )
+
+        _messages.value = _messages.value + newMessage
+        return Result.success(newMessage)
+    }
+
+    fun softDeleteMessage(messageId: String, moderatorUserId: String, subjectId: String?): Result<Unit> {
+        if (!canModerateRoom(moderatorUserId, subjectId)) {
+            return Result.failure(Exception("Unauthorized to moderate messages in this room."))
+        }
+
+        _messages.value = _messages.value.map { msg ->
+            if (msg.id == messageId) {
+                msg.copy(deletedAt = LocalDate.now().toString())
+            } else {
+                msg
+            }
+        }
+        return Result.success(Unit)
+    }
+
+    fun togglePinMessage(messageId: String, teacherId: String): Result<Unit> {
+        val user = _allUsers.value.find { it.id == teacherId }
+        if (user?.role != "teacher") return Result.failure(Exception("Only teachers can pin announcements."))
+
+        _messages.value = _messages.value.map {
+            if (it.id == messageId) it.copy(isPinned = !it.isPinned) else it
+        }
+        return Result.success(Unit)
+    }
+
+    // --- Assignments (Phase 5) ---
+    fun toggleAssignmentDone(assignmentId: String, studentId: String) {
+        val currentStatuses = _assignmentStatuses.value.toMutableList()
+        val existingIndex = currentStatuses.indexOfFirst { it.assignmentId == assignmentId && it.studentId == studentId }
+        if (existingIndex >= 0) {
+            val curr = currentStatuses[existingIndex]
+            currentStatuses[existingIndex] = curr.copy(isDone = !curr.isDone)
+        } else {
+            currentStatuses.add(AssignmentStatus(assignmentId, studentId, true))
+        }
+        _assignmentStatuses.value = currentStatuses
+    }
+
+    fun submitAssignment(assignmentId: String, studentId: String, fileName: String): Result<Unit> {
+        val currentList = _assignmentStatuses.value.toMutableList()
+        val existingIndex = currentList.indexOfFirst { it.assignmentId == assignmentId && it.studentId == studentId }
+        val dateNow = java.time.LocalDate.now().toString()
+        if (existingIndex >= 0) {
+            currentList[existingIndex] = currentList[existingIndex].copy(
+                isDone = true,
+                submissionFile = fileName,
+                submittedAt = dateNow
+            )
+        } else {
+            currentList.add(AssignmentStatus(assignmentId, studentId, true, fileName, null, null, dateNow))
+        }
+        _assignmentStatuses.value = currentList
+        return Result.success(Unit)
+    }
+
+    fun gradeAssignment(assignmentId: String, studentId: String, grade: String, feedback: String): Result<Unit> {
+        val currentList = _assignmentStatuses.value.toMutableList()
+        val existingIndex = currentList.indexOfFirst { it.assignmentId == assignmentId && it.studentId == studentId }
+        if (existingIndex >= 0) {
+            currentList[existingIndex] = currentList[existingIndex].copy(
+                grade = grade,
+                feedback = feedback
+            )
+            _assignmentStatuses.value = currentList
+            return Result.success(Unit)
+        }
+        return Result.failure(Exception("Submission not found"))
+    }
+
+    fun addAssignment(title: String, subjectId: String, desc: String, dueDate: String): Result<Unit> {
+        val sub = _subjects.value.find { it.id == subjectId }
+        val newAsgn = Assignment(
+            id = "asgn_${System.currentTimeMillis()}",
+            title = title,
+            subjectId = subjectId,
+            subjectName = sub?.name ?: "Subject",
+            description = desc,
+            dueDate = dueDate
+        )
+        _assignments.value = _assignments.value + newAsgn
+        return Result.success(Unit)
+    }
+
+    fun addResource(title: String, subjectId: String, fileType: String): Result<Unit> {
+        val sub = _subjects.value.find { it.id == subjectId }
+        val newRes = com.example.model.ResourceItem(
+            id = "res_${System.currentTimeMillis()}",
+            title = title,
+            subjectId = subjectId,
+            subjectName = sub?.name ?: "Subject",
+            fileType = fileType,
+            dateAdded = java.time.LocalDate.now().toString()
+        )
+        _resources.value = _resources.value + newRes
+        return Result.success(Unit)
+    }
+
+    // --- CR Permissions Management (Teacher) ---
+    fun updateCRPermission(studentId: String, subjectId: String, canMark: Boolean, canModerate: Boolean) {
+        val list = _crPermissions.value.filterNot { it.userId == studentId && it.subjectId == subjectId }.toMutableList()
+        list.add(CRPermission(studentId, subjectId, canMark, canModerate))
+        _crPermissions.value = list
+    }
+
+    // --- Settings Management (Teacher) ---
+    fun updateSettings(minAttendance: Int, semesterEnd: String) {
+        _settings.value = AppSettings(minAttendancePercent = minAttendance, semesterEndDate = semesterEnd)
+    }
+}
