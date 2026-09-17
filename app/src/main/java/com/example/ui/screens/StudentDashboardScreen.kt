@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,260 +17,301 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ClassHubRepository
 import com.example.model.User
-import com.example.ui.components.AttendanceTrendGraph
-import com.example.ui.components.EventPostCard
+import com.example.ui.haptics.LocalIOSHaptics
+import com.example.ui.theme.CampuProDesign
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @Composable
 fun StudentDashboardScreen(
     user: User,
     repository: ClassHubRepository = ClassHubRepository.instance,
-    onNavigateToTimetable: () -> Unit,
-    onNavigateToAttendance: () -> Unit,
-    onNavigateToRooms: () -> Unit
+    onNavigateToClasses: () -> Unit = {},
+    onNavigateToTimetable: () -> Unit = {},
+    onNavigateToAttendance: () -> Unit = {},
+    onNavigateToAssignments: () -> Unit = {},
+    onNavigateToExams: () -> Unit = {},
+    onNavigateToAssistant: () -> Unit = {}
 ) {
-    val subjects by repository.subjects.collectAsState()
-    val timetableSlots by repository.timetableSlots.collectAsState()
-    val overrides by repository.timetableOverrides.collectAsState()
-    val messages by repository.messages.collectAsState()
-    val events by repository.events.collectAsState()
-
-    val nextClass = remember(user, subjects, timetableSlots, overrides) {
-        repository.getNextClass(user.id)
-    }
-
-    val attendanceSummaries = remember(user, subjects) {
-        repository.getStudentAttendanceSummaries(user.id)
-    }
-
-    val overallAttended = attendanceSummaries.sumOf { it.attendedCount }
-    val overallHeld = attendanceSummaries.sumOf { it.heldCount }
-    val overallPct = if (overallHeld > 0) ((overallAttended.toDouble() / overallHeld) * 100).toInt() else 100
-
-    val minSafeSkips = attendanceSummaries.minOfOrNull { it.safeSkips } ?: 5
-    val hasWarning = minSafeSkips <= 1 || overallPct < 75
-
+    val haptics = LocalIOSHaptics.current
     val todayDateFormatted = remember {
-        LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy"))
+        LocalDate.now().format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy"))
     }
-    val currentTimeFormatted = remember {
-        LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm a"))
-    }
+    val firstName = user.fullName.split(" ").firstOrNull() ?: "Dharanidharan"
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(CampuProDesign.AppBackground)
+            .padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 20.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // 1. Top Section Greeting
+        // 1. Header Row
         item {
-            Column {
-                Text(
-                    text = "Good morning, ${user.fullName.split(" ").firstOrNull() ?: user.fullName}",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "CampuPro",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CampuProDesign.TextPrimary
+                    )
+                    Text(
+                        text = "BCA001",
+                        fontSize = 14.sp,
+                        color = CampuProDesign.TextSecondary
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(CampuProDesign.CardBackground),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.CalendarToday,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                     Text(
-                        text = todayDateFormatted,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Icon(
-                        Icons.Default.Schedule,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = currentTimeFormatted,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = firstName.take(1).uppercase(),
+                        color = CampuProDesign.TextPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
         }
 
-        // 2. NEXT CLASS Card
+        // 2. Greeting Block
+        item {
+            Column {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "Good morning, ",
+                        fontSize = 22.sp,
+                        color = CampuProDesign.TextSecondary
+                    )
+                    Text(
+                        text = "$firstName.",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CampuProDesign.TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = todayDateFormatted,
+                        fontSize = 14.sp,
+                        color = CampuProDesign.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "☀️ A great day to learn!",
+                        fontSize = 14.sp,
+                        color = CampuProDesign.TextSecondary
+                    )
+                }
+            }
+        }
+
+        // 3. White Rounded Card (5 Classes today)
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onNavigateToTimetable() },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                shape = RoundedCornerShape(16.dp),
+                    .clickable { 
+                        haptics?.lightImpact()
+                        onNavigateToTimetable() 
+                    },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = CampuProDesign.CardBackground),
+                border = BorderStroke(1.dp, CampuProDesign.CardBorder),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(CampuProDesign.AccentBlueHighlightFill),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            tint = CampuProDesign.AccentBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "5 classes today",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CampuProDesign.TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Stay consistent. Keep going!",
+                            fontSize = 13.sp,
+                            color = CampuProDesign.TextSecondary
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = CampuProDesign.TextSecondary
+                    )
+                }
+            }
+        }
+
+        // 4. Featured Dark-Navy Gradient Card ("Next Class")
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(CampuProDesign.NextClassGradient)
+                    .clickable {
+                        haptics?.lightImpact()
+                        onNavigateToTimetable()
+                    }
+                    .padding(20.dp)
+            ) {
+                Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "NEXT CLASS",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            letterSpacing = 1.sp
-                        )
-                        if (nextClass?.countdownText != null) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.primary)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = nextClass.countdownText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.AccessTime,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Next Class",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (nextClass != null) {
-                        Text(
-                            text = nextClass.subject.name,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color.White.copy(alpha = 0.2f))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.AccessTime,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = nextClass.formattedTime,
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.MeetingRoom,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = nextClass.effectiveRoom,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
+                            Text(
+                                text = "In 1h 20m",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
-
-                        // Room change or cancellation badge
-                        if (nextClass.overrideStatus == "room_changed") {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFFFF3E0))
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = "ROOM CHANGED TO ${nextClass.effectiveRoom}",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFE65100)
-                                    )
-                                    if (!nextClass.overrideNote.isNullOrEmpty()) {
-                                        Text(
-                                            text = nextClass.overrideNote,
-                                            fontSize = 11.sp,
-                                            color = Color(0xFF795548)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Text(
-                            text = "No classes scheduled today.",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
                     }
-                }
-            }
-        }
 
-        // 3. Early Warning Banner (if safe skips <= 1)
-        if (hasWarning) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
+                    Spacer(modifier = Modifier.height(20.dp))
+
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = "Attendance Warning",
-                            tint = Color(0xFFD32F2F),
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Attendance at risk",
+                                text = "Web Technologies",
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = Color(0xFFC62828)
+                                color = Color.White
                             )
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "You're close to or below the minimum 75% requirement. One more absence in Python may cause shortage.",
-                                fontSize = 12.sp,
-                                color = Color(0xFFB71C1C)
+                                text = "BCA303",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                        Icon(
+                            Icons.Default.LaptopMac,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Prof. Rajesh Sharma",
+                                color = Color.White,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Icon(
+                                Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "10:15 – 11:15 AM",
+                                color = Color.White,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Room 204",
+                                color = Color.White,
+                                fontSize = 13.sp
                             )
                         }
                     }
@@ -276,70 +319,7 @@ fun StudentDashboardScreen(
             }
         }
 
-        // 4. ATTENDANCE OVERVIEW Card
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToAttendance() },
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "ATTENDANCE OVERVIEW",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "$overallAttended of $overallHeld classes attended",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        val statusText = if (overallPct >= 75) "Healthy Attendance" else "Shortage Warning"
-                        val statusColor = if (overallPct >= 75) Color(0xFF2E7D32) else Color(0xFFC62828)
-                        Text(
-                            text = statusText,
-                            fontSize = 12.sp,
-                            color = statusColor,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    // Percentage Circle Indicator
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(68.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            progress = { overallPct / 100f },
-                            modifier = Modifier.fillMaxSize(),
-                            strokeWidth = 6.dp,
-                            color = if (overallPct >= 75) Color(0xFF388E3C) else Color(0xFFD32F2F),
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        )
-                        Text(
-                            text = "$overallPct%",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        // 5. SUBJECT ATTENDANCE SECTION
+        // 5. Quick Actions Section
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -347,151 +327,194 @@ fun StudentDashboardScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Subject-wise Attendance",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "Quick Actions",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = CampuProDesign.TextPrimary
                 )
-                TextButton(onClick = { onNavigateToAttendance() }) {
-                    Text("View Calculator", fontSize = 13.sp)
-                }
+                Text(
+                    text = "See All",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = CampuProDesign.AccentBlue,
+                    modifier = Modifier.clickable { haptics?.lightImpact() }
+                )
             }
         }
 
-        items(attendanceSummaries) { item ->
-            Card(
+        // 6. Row of 4 Icon Tiles
+        item {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Column {
-                            Text(
-                                text = item.subject.name,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
-                            Text(
-                                text = "${item.attendedCount} / ${item.heldCount} classes attended",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        // Percentage Badge
-                        val badgeBg = if (item.percentage >= 75) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                        val badgeColor = if (item.percentage >= 75) Color(0xFF2E7D32) else Color(0xFFC62828)
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(badgeBg)
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "${item.percentage}%",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = badgeColor
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Safe-To-Bunk Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Safe to miss:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${item.safeSkips} classes",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (item.safeSkips <= 1) Color(0xFFD32F2F) else Color(0xFF2E7D32)
-                            )
-                            if (item.safeSkips <= 1) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "(Danger)",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFFD32F2F),
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Trend history preview
-                    AttendanceTrendGraph(trend = item.trendHistory, isWarning = item.isWarning)
-                }
+                QuickActionTile(
+                    title = "AI Assist",
+                    icon = Icons.Default.AutoAwesome,
+                    bgColor = CampuProDesign.TilePurpleBg,
+                    iconColor = CampuProDesign.TilePurpleIcon,
+                    onClick = { haptics?.lightImpact(); onNavigateToAssistant() }
+                )
+                QuickActionTile(
+                    title = "Attendance",
+                    icon = Icons.Default.CheckCircleOutline,
+                    bgColor = CampuProDesign.TileTealBg,
+                    iconColor = CampuProDesign.TileTealIcon,
+                    onClick = { haptics?.lightImpact(); onNavigateToAttendance() }
+                )
+                QuickActionTile(
+                    title = "Exams",
+                    icon = Icons.Default.Description,
+                    bgColor = CampuProDesign.TileIndigoBg,
+                    iconColor = CampuProDesign.TileIndigoIcon,
+                    onClick = { haptics?.lightImpact(); onNavigateToExams() }
+                )
+                QuickActionTile(
+                    title = "Timetable",
+                    icon = Icons.Default.CalendarMonth,
+                    bgColor = CampuProDesign.TileGreenBg,
+                    iconColor = CampuProDesign.TileGreenIcon,
+                    onClick = { haptics?.lightImpact(); onNavigateToTimetable() }
+                )
             }
         }
 
-        // 6. RECENT DISCUSSIONS Preview
+        // 7. Attendance Summary Card
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onNavigateToRooms() },
-                shape = RoundedCornerShape(12.dp)
+                    .clickable {
+                        haptics?.lightImpact()
+                        onNavigateToAttendance()
+                    },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = CampuProDesign.CardBackground),
+                border = BorderStroke(1.dp, CampuProDesign.CardBorder),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Chat, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Recent Class Discussions", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val latestMsg = messages.lastOrNull { it.deletedAt == null }
-                    if (latestMsg != null) {
                         Text(
-                            text = "${latestMsg.senderName}: \"${latestMsg.content}\"",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2
+                            text = "Attendance",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CampuProDesign.TextPrimary
                         )
+                        Icon(
+                            Icons.Default.BarChart,
+                            contentDescription = null,
+                            tint = CampuProDesign.TextSecondary
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Circular Progress Ring representation
+                        Box(
+                            modifier = Modifier.size(64.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                progress = { 1f },
+                                color = CampuProDesign.CardBorder,
+                                strokeWidth = 5.dp,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            CircularProgressIndicator(
+                                progress = { 0.83f },
+                                color = CampuProDesign.AccentBlue,
+                                strokeWidth = 5.dp,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            Text(
+                                text = "83%",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CampuProDesign.TextPrimary
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(20.dp))
+                        
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "20 of 24 attended",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = CampuProDesign.TextPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .background(CampuProDesign.SuccessBg)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Eligible",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = CampuProDesign.SuccessText
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "5 safe skips remaining",
+                                    fontSize = 12.sp,
+                                    color = CampuProDesign.TextSecondary
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
 
-        // 7. Recent Events
-        item {
-            Text(
-                text = "Event Highlights",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 8.dp)
+@Composable
+fun QuickActionTile(
+    title: String,
+    icon: ImageVector,
+    bgColor: Color,
+    iconColor: Color,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(72.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(bgColor)
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = iconColor,
+                modifier = Modifier.size(28.dp)
             )
         }
-        
-        items(events) { event ->
-            EventPostCard(event)
-        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = CampuProDesign.TextPrimary,
+            textAlign = TextAlign.Center
+        )
     }
 }

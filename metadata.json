@@ -1,6 +1,6 @@
 {
-  "name": "ClassHub",
-  "description": "Everything your class needs, in one place. A professional college class management application.",
+  "name": "CampuPro",
+  "description": "Modern college class-hub and student productivity app built with Apple Human Interface Guidelines and Liquid Glass design.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

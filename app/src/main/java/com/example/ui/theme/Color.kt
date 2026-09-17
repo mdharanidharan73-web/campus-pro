@@ -2,32 +2,22 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val md_theme_light_primary = Color(0xFF3F51B5)
-val md_theme_light_onPrimary = Color(0xFFFFFFFF)
-val md_theme_light_primaryContainer = Color(0xFFE8EAF6)
-val md_theme_light_onPrimaryContainer = Color(0xFF1A237E)
-val md_theme_light_secondary = Color(0xFF7986CB)
-val md_theme_light_onSecondary = Color(0xFFFFFFFF)
-val md_theme_light_secondaryContainer = Color(0xFFC5CAE9)
-val md_theme_light_onSecondaryContainer = Color(0xFF283593)
-val md_theme_light_error = Color(0xFFB3261E)
-val md_theme_light_onError = Color(0xFFFFFFFF)
-val md_theme_light_background = Color(0xFFF8F9FA)
-val md_theme_light_onBackground = Color(0xFF1C1B1F)
-val md_theme_light_surface = Color(0xFFFFFFFF)
-val md_theme_light_onSurface = Color(0xFF1C1B1F)
+// Apple-inspired iOS Light Palette
+val ios_light_systemBackground = Color(0xFFF2F2F7) // Grouped list background
+val ios_light_secondarySystemBackground = Color(0xFFFFFFFF) // Surface / Card
+val ios_light_label = Color(0xFF000000)
+val ios_light_secondaryLabel = Color(0xFF8E8E93)
+val ios_light_separator = Color(0xFFC6C6C8) // Outline / Divider
+val ios_light_primary = Color(0xFF007AFF)
+val ios_light_error = Color(0xFFFF3B30)
 
-val md_theme_dark_primary = Color(0xFFC5CAE9)
-val md_theme_dark_onPrimary = Color(0xFF1A237E)
-val md_theme_dark_primaryContainer = Color(0xFF3F51B5)
-val md_theme_dark_onPrimaryContainer = Color(0xFFE8EAF6)
-val md_theme_dark_secondary = Color(0xFF9FA8DA)
-val md_theme_dark_onSecondary = Color(0xFF283593)
-val md_theme_dark_secondaryContainer = Color(0xFF5C6BC0)
-val md_theme_dark_onSecondaryContainer = Color(0xFFE8EAF6)
-val md_theme_dark_error = Color(0xFFF2B8B5)
-val md_theme_dark_onError = Color(0xFF601410)
-val md_theme_dark_background = Color(0xFF121212)
-val md_theme_dark_onBackground = Color(0xFFE6E1E5)
-val md_theme_dark_surface = Color(0xFF1C1B1F)
-val md_theme_dark_onSurface = Color(0xFFE6E1E5)
+// Apple-inspired iOS Dark Palette
+val ios_dark_systemBackground = Color(0xFF000000) // Pure black background
+val ios_dark_secondarySystemBackground = Color(0xFF1C1C1E) // Elevated Surface / Card
+val ios_dark_label = Color(0xFFFFFFFF)
+val ios_dark_secondaryLabel = Color(0xFF98989F) // Adjusted alpha for visibility
+val ios_dark_separator = Color(0xFF38383A) // Outline / Divider
+val ios_dark_primary = Color(0xFF0A84FF)
+val ios_dark_error = Color(0xFFFF453A)
+
+

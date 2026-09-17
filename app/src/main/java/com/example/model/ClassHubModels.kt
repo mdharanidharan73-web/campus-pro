@@ -26,7 +26,9 @@ data class Subject(
     val name: String,
     @SerialName("faculty_id") val facultyId: String? = null,
     val facultyName: String = "",
-    @SerialName("is_common") val isCommon: Boolean = true
+    @SerialName("is_common") val isCommon: Boolean = true,
+    val code: String = "BCA301",
+    val room: String = "Room 204"
 )
 
 @Serializable
@@ -113,7 +115,22 @@ data class Assignment(
     val subjectId: String,
     val subjectName: String,
     val description: String,
-    val dueDate: String
+    val dueDate: String,
+    val priority: String = "Medium" // "High", "Medium", "Low"
+)
+
+@Serializable
+data class Exam(
+    val id: String,
+    val subjectId: String,
+    val subjectName: String,
+    val subjectCode: String,
+    val title: String,
+    val date: String, // "2026-10-12"
+    val time: String, // "10:00 AM - 01:00 PM"
+    val room: String, // "Main Hall 3B"
+    val seatNo: String = "B-24",
+    val syllabusTopics: String = "Units 1 to 4: Core Architecture & Applications"
 )
 
 @Serializable

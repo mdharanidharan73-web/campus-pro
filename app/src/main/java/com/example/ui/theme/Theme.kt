@@ -8,59 +8,56 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = md_theme_dark_primary,
-    onPrimary = md_theme_dark_onPrimary,
-    primaryContainer = md_theme_dark_primaryContainer,
-    onPrimaryContainer = md_theme_dark_onPrimaryContainer,
-    secondary = md_theme_dark_secondary,
-    onSecondary = md_theme_dark_onSecondary,
-    secondaryContainer = md_theme_dark_secondaryContainer,
-    onSecondaryContainer = md_theme_dark_onSecondaryContainer,
-    error = md_theme_dark_error,
-    onError = md_theme_dark_onError,
-    background = md_theme_dark_background,
-    onBackground = md_theme_dark_onBackground,
-    surface = md_theme_dark_surface,
-    onSurface = md_theme_dark_onSurface,
+    primary = ios_dark_primary,
+    onPrimary = Color.White,
+    primaryContainer = ios_dark_primary,
+    onPrimaryContainer = Color.White,
+    secondary = ios_dark_primary,
+    onSecondary = Color.White,
+    secondaryContainer = ios_dark_secondarySystemBackground,
+    onSecondaryContainer = ios_dark_label,
+    error = ios_dark_error,
+    onError = Color.White,
+    background = ios_dark_systemBackground,
+    onBackground = ios_dark_label,
+    surface = ios_dark_secondarySystemBackground,
+    onSurface = ios_dark_label,
+    surfaceVariant = ios_dark_systemBackground,
+    onSurfaceVariant = ios_dark_secondaryLabel,
+    outline = ios_dark_separator
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = md_theme_light_primary,
-    onPrimary = md_theme_light_onPrimary,
-    primaryContainer = md_theme_light_primaryContainer,
-    onPrimaryContainer = md_theme_light_onPrimaryContainer,
-    secondary = md_theme_light_secondary,
-    onSecondary = md_theme_light_onSecondary,
-    secondaryContainer = md_theme_light_secondaryContainer,
-    onSecondaryContainer = md_theme_light_onSecondaryContainer,
-    error = md_theme_light_error,
-    onError = md_theme_light_onError,
-    background = md_theme_light_background,
-    onBackground = md_theme_light_onBackground,
-    surface = md_theme_light_surface,
-    onSurface = md_theme_light_onSurface,
+    primary = ios_light_primary,
+    onPrimary = Color.White,
+    primaryContainer = ios_light_primary,
+    onPrimaryContainer = Color.White,
+    secondary = ios_light_primary,
+    onSecondary = Color.White,
+    secondaryContainer = ios_light_secondarySystemBackground,
+    onSecondaryContainer = ios_light_label,
+    error = ios_light_error,
+    onError = Color.White,
+    background = ios_light_systemBackground,
+    onBackground = ios_light_label,
+    surface = ios_light_secondarySystemBackground,
+    onSurface = ios_light_label,
+    surfaceVariant = ios_light_systemBackground,
+    onSurfaceVariant = ios_light_secondaryLabel,
+    outline = ios_light_separator
 )
 
 @Composable
 fun MyApplicationTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
-  // Dynamic color is available on Android 12+
-  dynamicColor: Boolean = true,
+  dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {
-  val colorScheme =
-    when {
-      dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-        val context = LocalContext.current
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-      }
-
-      darkTheme -> DarkColorScheme
-      else -> LightColorScheme
-    }
+  val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
   MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }

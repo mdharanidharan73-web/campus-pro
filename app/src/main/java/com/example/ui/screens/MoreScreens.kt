@@ -52,12 +52,14 @@ fun RosterScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 20.dp, vertical = 24.dp)
     ) {
-        Text("Official Class Roster", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text("BCA 2026 Batch (${allUsers.count { it.role in listOf("student", "cr") }} registered)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Official Class Roster", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text("BCA 2026 Batch (${allUsers.count { it.role in listOf("student", "cr") }} registered)", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = searchQuery,
@@ -65,56 +67,69 @@ fun RosterScreen(
             placeholder = { Text("Search by name or roll number...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedBorderColor = Color.Transparent,
+                focusedBorderColor = MaterialTheme.colorScheme.primary
+            ),
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            items(students) { st ->
-                val enrolledSubIds = enrollments.filter { it.studentId == st.id }.map { it.subjectId }
-                val language = subjects.find { it.id in enrolledSubIds && !it.isCommon }?.name ?: "Elective"
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(students) { st ->
+                    val enrolledSubIds = enrollments.filter { it.studentId == st.id }.map { it.subjectId }
+                    val language = subjects.find { it.id in enrolledSubIds && !it.isCommon }?.name ?: "Elective"
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(st.fullName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                if (st.role == "cr") {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(Color(0xFFFFF3E0))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text("CR", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE65100))
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(st.fullName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                    if (st.role == "cr") {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xFFFF9500).copy(alpha = 0.15f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("CR", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF9500))
+                                        }
                                     }
                                 }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("Roll No: ${st.rollNo} • Lang: $language", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text("Roll No: ${st.rollNo} • Lang: $language", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
 
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE8F5E9))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text("Active", fontSize = 11.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
+                            Text("Active", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF34C759))
+                        }
+                        
+                        if (st != students.last()) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                            )
                         }
                     }
                 }
@@ -140,59 +155,99 @@ fun CRPermissionsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 20.dp, vertical = 24.dp)
     ) {
-        Text("CR Scoped Delegations", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text("Delegate subject-specific attendance & moderation permissions to CRs", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("CR Scoped Delegations", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text("Delegate subject-specific attendance & moderation permissions to CRs", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (crStudents.isEmpty()) {
-            Text("No CR students designated.")
+            Text("No CR students designated.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            crStudents.forEach { cr ->
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("${cr.fullName} (${cr.rollNo}) - Class Representative", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
+                crStudents.forEach { cr ->
+                    item {
+                        Text(
+                            text = "${cr.fullName} (${cr.rollNo})",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                        )
+                        
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 24.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Column {
+                                subjects.forEachIndexed { index, sub ->
+                                    val perm = crPermissions.find { it.userId == cr.id && it.subjectId == sub.id }
+                                    val canMark = perm?.canMarkAttendance == true
+                                    val canMod = perm?.canModerateRoom == true
 
-                        subjects.forEach { sub ->
-                            val perm = crPermissions.find { it.userId == cr.id && it.subjectId == sub.id }
-                            val canMark = perm?.canMarkAttendance == true
-                            val canMod = perm?.canModerateRoom == true
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                                    ) {
+                                        Text(sub.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Mark Attendance", style = MaterialTheme.typography.bodyMedium)
+                                            Switch(
+                                                checked = canMark,
+                                                onCheckedChange = {
+                                                    if (user.role == "teacher") {
+                                                        repository.updateCRPermission(cr.id, sub.id, it, canMod)
+                                                        Toast.makeText(context, "Attendance permission updated", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF34C759))
+                                            )
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Moderate Room", style = MaterialTheme.typography.bodyMedium)
+                                            Switch(
+                                                checked = canMod,
+                                                onCheckedChange = {
+                                                    if (user.role == "teacher") {
+                                                        repository.updateCRPermission(cr.id, sub.id, canMark, it)
+                                                        Toast.makeText(context, "Mod permission updated", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF34C759))
+                                            )
+                                        }
+                                    }
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(sub.name, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    FilterChip(
-                                        selected = canMark,
-                                        onClick = {
-                                            if (user.role == "teacher") {
-                                                repository.updateCRPermission(cr.id, sub.id, !canMark, canMod)
-                                                Toast.makeText(context, "Attendance permission updated", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        label = { Text("Mark Att", fontSize = 10.sp) }
-                                    )
-                                    FilterChip(
-                                        selected = canMod,
-                                        onClick = {
-                                            if (user.role == "teacher") {
-                                                repository.updateCRPermission(cr.id, sub.id, canMark, !canMod)
-                                                Toast.makeText(context, "Mod permission updated", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        label = { Text("Moderate", fontSize = 10.sp) }
-                                    )
+                                    if (index < subjects.size - 1) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(start = 16.dp),
+                                            thickness = 0.5.dp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -51,7 +52,7 @@ fun TeacherDashboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 1. Welcome banner
@@ -193,7 +194,10 @@ fun TeacherDashboardScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Text(
                         text = "No classes scheduled for today.",
@@ -209,7 +213,10 @@ fun TeacherDashboardScreen(
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Row(
@@ -353,7 +360,9 @@ fun TeacherStatCard(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = color),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(14.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -362,12 +371,39 @@ fun TeacherStatCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = title, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(
+                    text = title,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(color.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = value, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(text = subtitle, fontSize = 10.sp)
+            Text(
+                text = value,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

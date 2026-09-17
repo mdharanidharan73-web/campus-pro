@@ -1,14 +1,19 @@
 package com.example
 
+import androidx.compose.runtime.saveable.rememberSaveable
+
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,9 +26,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.rememberNavController
+
+
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.rememberNavController
+
+
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavGraph.Companion.findStartDestination
+
 import com.example.data.ClassHubRepository
 import com.example.model.User
-import com.example.ui.components.ClassHubHeader
+import com.example.navigation.*
+import com.example.ui.glass.*
+import com.example.ui.haptics.LocalIOSHaptics
+import com.example.ui.haptics.rememberIOSHaptics
 import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
 
@@ -33,7 +59,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                ClassHubRoot()
+                val haptics = rememberIOSHaptics()
+                CompositionLocalProvider(LocalIOSHaptics provides haptics) {
+                    ClassHubRoot()
+                }
             }
         }
     }
@@ -74,255 +103,276 @@ fun MainAppShell(
     onLogout: () -> Unit,
     onSwitchRole: (String) -> Unit
 ) {
-    var selectedTab by remember(currentUser.id) { mutableStateOf(0) }
-    var moreSubScreen by remember { mutableStateOf<String?>(null) }
-
+    val navController = androidx.navigation.compose.rememberNavController()
     val isTeacher = currentUser.role == "teacher"
+    var activeModal by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.example.navigation.CampuProModal?>(null) }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    var currentTab by rememberSaveable { androidx.compose.runtime.mutableStateOf(com.example.navigation.CampuProTab.TODAY) }
 
     Scaffold(
-        topBar = {
-            ClassHubHeader(
-                currentUser = currentUser,
-                onSwitchRole = onSwitchRole,
-                onLogout = onLogout
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = selectedTab == 0 && moreSubScreen == null,
-                    onClick = {
-                        selectedTab = 0
-                        moreSubScreen = null
-                    },
-                    icon = { Icon(Icons.Default.Dashboard, contentDescription = "Dashboard") },
-                    label = { Text("Dashboard") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 1 && moreSubScreen == null,
-                    onClick = {
-                        selectedTab = 1
-                        moreSubScreen = null
-                    },
-                    icon = {
-                        Icon(
-                            if (isTeacher) Icons.Default.CheckCircle else Icons.Default.Schedule,
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text(if (isTeacher) "Attendance" else "Timetable") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 2 && moreSubScreen == null,
-                    onClick = {
-                        selectedTab = 2
-                        moreSubScreen = null
-                    },
-                    icon = {
-                        Icon(
-                            if (isTeacher) Icons.Default.Schedule else Icons.Default.CheckCircle,
-                            contentDescription = null
-                        )
-                    },
-                    label = { Text(if (isTeacher) "Timetable" else "Attendance") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 3 && moreSubScreen == null,
-                    onClick = {
-                        selectedTab = 3
-                        moreSubScreen = null
-                    },
-                    icon = { Icon(Icons.Default.Chat, contentDescription = "Rooms") },
-                    label = { Text("Rooms") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 4 || moreSubScreen != null,
-                    onClick = {
-                        selectedTab = 4
-                        moreSubScreen = null
-                    },
-                    icon = {
-                        Icon(
-                            if (isTeacher) Icons.Default.AdminPanelSettings else Icons.Default.MoreHoriz,
-                            contentDescription = "More"
-                        )
-                    },
-                    label = { Text(if (isTeacher) "Admin" else "More") }
-                )
-            }
-        },
-        floatingActionButton = {
-            var showAssistant by remember { mutableStateOf(false) }
-            FloatingActionButton(
-                onClick = { showAssistant = true },
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Icon(Icons.Default.SmartToy, contentDescription = "AI Assistant")
-            }
-            if (showAssistant) {
-                ChatAssistantDialog(onDismiss = { showAssistant = false })
-            }
-        }
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            when {
-                moreSubScreen == "roster" -> {
-                    RosterScreen(user = currentUser, repository = repository)
-                }
-                moreSubScreen == "cr_permissions" -> {
-                    CRPermissionsScreen(user = currentUser, repository = repository)
-                }
-                moreSubScreen == "stretch" -> {
-                    StretchFeaturesScreen(user = currentUser, repository = repository)
-                }
-                moreSubScreen == "settings" -> {
-                    SettingsScreen(user = currentUser, repository = repository)
-                }
-                selectedTab == 0 -> {
-                    if (isTeacher) {
-                        TeacherDashboardScreen(
-                            user = currentUser,
-                            repository = repository,
-                            onNavigateToAttendance = { selectedTab = 1 },
-                            onNavigateToTimetable = { selectedTab = 2 },
-                            onNavigateToRoster = { moreSubScreen = "roster" },
-                            onNavigateToRooms = { selectedTab = 3 },
-                            onNavigateToCRPermissions = { moreSubScreen = "cr_permissions" }
-                        )
-                    } else {
-                        StudentDashboardScreen(
-                            user = currentUser,
-                            repository = repository,
-                            onNavigateToTimetable = { selectedTab = 1 },
-                            onNavigateToAttendance = { selectedTab = 2 },
-                            onNavigateToRooms = { selectedTab = 3 }
-                        )
-                    }
-                }
-                selectedTab == 1 -> {
-                    if (isTeacher) {
-                        AttendanceScreen(user = currentUser, repository = repository)
-                    } else {
-                        TimetableScreen(user = currentUser, repository = repository)
-                    }
-                }
-                selectedTab == 2 -> {
-                    if (isTeacher) {
-                        TimetableScreen(user = currentUser, repository = repository)
-                    } else {
-                        AttendanceScreen(user = currentUser, repository = repository)
-                    }
-                }
-                selectedTab == 3 -> {
-                    RoomsScreen(user = currentUser, repository = repository)
-                }
-                selectedTab == 4 -> {
-                    MoreNavMenu(
-                        isTeacher = isTeacher,
-                        onOpen = { moreSubScreen = it }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MoreNavMenu(
-    isTeacher: Boolean,
-    onOpen: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            text = if (isTeacher) "Faculty Administration & Features" else "Additional Features",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "ClassHub college class management tools",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        MoreMenuItem(
-            icon = Icons.Default.FormatListNumbered,
-            title = "Class Roster",
-            subtitle = "View all 33 students, roll numbers & enrollments",
-            onClick = { onOpen("roster") }
-        )
-
-        if (isTeacher) {
-            MoreMenuItem(
-                icon = Icons.Default.Star,
-                title = "CR Permissions Delegation",
-                subtitle = "Manage scoped subject attendance & moderation for CRs",
-                onClick = { onOpen("cr_permissions") }
-            )
-        }
-
-        MoreMenuItem(
-            icon = Icons.Default.Assignment,
-            title = "Assignments & Resource Shelf",
-            subtitle = "Coursework tracker and downloadable study handouts (Phase 5)",
-            onClick = { onOpen("stretch") }
-        )
-
-        MoreMenuItem(
-            icon = Icons.Default.Settings,
-            title = "App Settings & Thresholds",
-            subtitle = "Minimum 75% attendance rule and semester calendar",
-            onClick = { onOpen("settings") }
-        )
-    }
-}
-
-@Composable
-fun MoreMenuItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(top = innerPadding.calculateTopPadding())
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(bottom = if (activeModal == null) 112.dp else 0.dp)
             ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                NavHost(
+                    navController = navController,
+                    startDestination = "today",
+                    enterTransition = { androidx.compose.animation.slideInHorizontally(initialOffsetX = { it }) },
+                    exitTransition = { androidx.compose.animation.slideOutHorizontally(targetOffsetX = { -it }) },
+                    popEnterTransition = { androidx.compose.animation.slideInHorizontally(initialOffsetX = { -it }) },
+                    popExitTransition = { androidx.compose.animation.slideOutHorizontally(targetOffsetX = { it }) }
+                ) {
+                    composable("today") {
+                        val canPop = false
+                        Column(modifier = if (canPop) Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() }) else Modifier) {
+                            if (isTeacher) {
+                                TeacherDashboardScreen(
+                                    user = currentUser,
+                                    repository = repository,
+                                    onNavigateToAttendance = { currentTab = com.example.navigation.CampuProTab.CLASSES; navController.navigate("attendance") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToTimetable = { currentTab = com.example.navigation.CampuProTab.SCHEDULE; navController.navigate("schedule") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToRoster = { currentTab = com.example.navigation.CampuProTab.MORE; navController.navigate("roster") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToRooms = { currentTab = com.example.navigation.CampuProTab.MORE; navController.navigate("rooms") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToCRPermissions = { currentTab = com.example.navigation.CampuProTab.MORE; navController.navigate("cr_permissions") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } }
+                                )
+                            } else {
+                                StudentDashboardScreen(
+                                    user = currentUser,
+                                    repository = repository,
+                                    onNavigateToClasses = { currentTab = com.example.navigation.CampuProTab.CLASSES; navController.navigate("classes") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToTimetable = { currentTab = com.example.navigation.CampuProTab.SCHEDULE; navController.navigate("schedule") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToAttendance = { currentTab = com.example.navigation.CampuProTab.ATTENDANCE; navController.navigate("attendance") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToAssignments = { currentTab = com.example.navigation.CampuProTab.MORE; navController.navigate("assignments") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToExams = { currentTab = com.example.navigation.CampuProTab.MORE; navController.navigate("exams") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateToAssistant = { activeModal = com.example.navigation.CampuProModal.AIAssistant }
+                                )
+                            }
+                        }
+                    }
+                    composable("classes") {
+                        val canPop = false
+                        Column(modifier = if (canPop) Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() }) else Modifier) {
+                            ClassesScreen(
+                                user = currentUser,
+                                repository = repository,
+                                onNavigateToSubject = { subjectId -> navController.navigate("subject/$subjectId") },
+                                onNavigateToAssignments = { currentTab = com.example.navigation.CampuProTab.MORE; navController.navigate("assignments") { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } }
+                            )
+                        }
+                    }
+                    composable("schedule") {
+                        val canPop = false
+                        Column(modifier = if (canPop) Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() }) else Modifier) {
+                            TimetableScreen(
+                                user = currentUser,
+                                repository = repository
+                            )
+                        }
+                    }
+                    composable("attendance") {
+                        val canPop = false
+                        Column(modifier = if (canPop) Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() }) else Modifier) {
+                            AttendanceScreen(
+                                user = currentUser,
+                                repository = repository
+                            )
+                        }
+                    }
+                    composable("rooms") {
+                        val canPop = false
+                        Column(modifier = if (canPop) Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() }) else Modifier) {
+                            RoomsScreen(user = currentUser, repository = repository)
+                        }
+                    }
+                    composable("more") {
+                        val canPop = false
+                        Column(modifier = if (canPop) Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() }) else Modifier) {
+                            MoreMenuScreen(
+                                user = currentUser,
+                                onNavigate = { dest ->
+                                    when (dest) {
+                                        "assignments" -> navController.navigate("assignments")
+                                        "exams" -> navController.navigate("exams")
+                                        "profile" -> navController.navigate("profile")
+                                        "rooms" -> navController.navigate("rooms")
+                                        "roster" -> navController.navigate("roster")
+                                        "cr_permissions" -> navController.navigate("cr_permissions")
+                                        "stretch" -> navController.navigate("stretch")
+                                        "settings" -> navController.navigate("settings")
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    composable("subject/{subjectId}") { backStackEntry ->
+                        val subjectId = backStackEntry.arguments?.getString("subjectId") ?: ""
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            SubjectDetailsScreen(
+                                user = currentUser,
+                                subjectId = subjectId,
+                                repository = repository,
+                                onBack = { navController.popBackStack() },
+                                onNavigateToAssignmentDetail = { assignmentId -> navController.navigate("assignment/$assignmentId") },
+                                onNavigateToFacultyDetail = { facultyName, subjectCode -> navController.navigate("faculty/$facultyName/$subjectCode") }
+                            )
+                        }
+                    }
+                    composable("assignment/{assignmentId}") { backStackEntry ->
+                        val assignmentId = backStackEntry.arguments?.getString("assignmentId") ?: ""
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            AssignmentDetailsScreen(
+                                user = currentUser,
+                                assignmentId = assignmentId,
+                                repository = repository,
+                                onBack = { navController.popBackStack() },
+                                onNavigateToFacultyDetail = { facultyName, subjectCode -> navController.navigate("faculty/$facultyName/$subjectCode") }
+                            )
+                        }
+                    }
+                    composable("faculty/{facultyName}/{subjectCode}") { backStackEntry ->
+                        val facultyName = backStackEntry.arguments?.getString("facultyName") ?: ""
+                        val subjectCode = backStackEntry.arguments?.getString("subjectCode") ?: ""
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            FacultyDetailsScreen(
+                                user = currentUser,
+                                facultyName = facultyName,
+                                subjectCode = subjectCode,
+                                repository = repository,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                    }
+                    composable("assignments") {
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            AssignmentsScreen(
+                                user = currentUser,
+                                repository = repository,
+                                onNavigateToAssignmentDetail = { assignmentId -> navController.navigate("assignment/$assignmentId") }
+                            )
+                        }
+                    }
+                    composable("exams") {
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            ExamsScreen(user = currentUser, repository = repository)
+                        }
+                    }
+                    composable("profile") {
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            ProfileScreen(
+                                user = currentUser,
+                                repository = repository,
+                                onLogout = onLogout,
+                                onSwitchRole = onSwitchRole,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                    }
+                    composable("settings") {
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            SettingsScreen(user = currentUser, repository = repository)
+                        }
+                    }
+                    composable("roster") {
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            RosterScreen(user = currentUser, repository = repository)
+                        }
+                    }
+                    composable("cr_permissions") {
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            CRPermissionsScreen(user = currentUser, repository = repository)
+                        }
+                    }
+                    composable("stretch") {
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            StretchFeaturesScreen(user = currentUser, repository = repository)
+                        }
+                    }
+                }
             }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            // Floating Liquid Glass Tab Bar
+            if (activeModal == null) {
+                GlassTabBar(
+                    currentTab = currentTab,
+                    isTeacher = isTeacher,
+                    onTabSelected = { tab ->
+                        if (currentTab == tab) {
+                            navController.popBackStack(navController.graph.findStartDestination().id, false)
+                        } else {
+                            currentTab = tab
+                            val route = when (tab) {
+                                com.example.navigation.CampuProTab.TODAY -> "today"
+                                com.example.navigation.CampuProTab.CLASSES -> if (isTeacher) "attendance" else "classes"
+                                com.example.navigation.CampuProTab.SCHEDULE -> "schedule"
+                                com.example.navigation.CampuProTab.ATTENDANCE -> if (isTeacher) "rooms" else "attendance"
+                                com.example.navigation.CampuProTab.MORE -> "more"
+                            }
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+
+                // Floating Liquid Glass AI Assistant FAB
+                GlassFloatingControl(
+                    onClick = { activeModal = com.example.navigation.CampuProModal.AIAssistant },
+                    icon = Icons.Default.SmartToy,
+                    contentDescription = "CampuPro AI",
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 20.dp, bottom = 124.dp)
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                )
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        // Active Modal Presentation
+        if (activeModal is com.example.navigation.CampuProModal.AIAssistant) {
+            AIAssistantScreen(
+                user = currentUser,
+                repository = repository,
+                onBack = { activeModal = null },
+                onNavigateToAttendance = {
+                    activeModal = null
+                    currentTab = if (isTeacher) com.example.navigation.CampuProTab.CLASSES else com.example.navigation.CampuProTab.ATTENDANCE
+                    navController.navigate("attendance") { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true }
+                },
+                onNavigateToTimetable = {
+                    activeModal = null
+                    currentTab = com.example.navigation.CampuProTab.SCHEDULE
+                    navController.navigate("schedule") { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true }
+                },
+                onNavigateToAssignments = {
+                    activeModal = null
+                    currentTab = com.example.navigation.CampuProTab.MORE
+                    navController.navigate("assignments") { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true }
+                },
+                onNavigateToExams = {
+                    activeModal = null
+                    currentTab = com.example.navigation.CampuProTab.MORE
+                    navController.navigate("exams") { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true }
+                }
+            )
         }
     }
 }
+
 
 @Composable
 fun LoginScreen(
@@ -330,8 +380,8 @@ fun LoginScreen(
     onNavigateToSignup: () -> Unit
 ) {
     val context = LocalContext.current
-    var email by remember { mutableStateOf("rahul.verma@classhub.edu") }
-    var password by remember { mutableStateOf("student123") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -343,92 +393,13 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.School, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "ClassHub",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "Everything your class needs, in one place.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
-            // Demo Account Quick Selector (Page 31 of prompt!)
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "Demo Accounts Quick-Switch:",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Button(
-                            onClick = { repository.switchDemoUser("student") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                        ) {
-                            Text("🎓 Rahul", fontSize = 11.sp)
-                        }
-                        Button(
-                            onClick = { repository.switchDemoUser("cr") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                        ) {
-                            Text("⭐ Priya (CR)", fontSize = 11.sp)
-                        }
-                        Button(
-                            onClick = { repository.switchDemoUser("teacher") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                        ) {
-                            Text("👨‍🏫 Sharma", fontSize = 11.sp)
-                        }
-                    }
-                }
-            }
-
-            if (errorMessage != null) {
-                Text(
-                    text = errorMessage ?: "",
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-
+            Text("Login", style = MaterialTheme.typography.headlineMedium)
+            Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("College Email") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
@@ -436,32 +407,30 @@ fun LoginScreen(
                 onValueChange = { password = it },
                 label = { Text("Password") },
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(20.dp))
-
+            Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = {
                     val res = repository.login(email, password)
-                    if (res.isFailure) {
-                        errorMessage = res.exceptionOrNull()?.message
-                    } else {
-                        Toast.makeText(context, "Logged in as ${res.getOrNull()?.fullName}", Toast.LENGTH_SHORT).show()
-                    }
+                    if (res.isFailure) errorMessage = res.exceptionOrNull()?.message
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(10.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Sign In to ClassHub", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Login")
             }
-
             Spacer(modifier = Modifier.height(12.dp))
-
             TextButton(onClick = onNavigateToSignup) {
-                Text("New student? Claim your Roll Number & Sign up")
+                Text("Sign up")
+            }
+            if (errorMessage != null) {
+                Text(text = errorMessage!!, color = Color.Red)
+            }
+            Spacer(modifier = Modifier.height(32.dp))
+            Row {
+                Button(onClick = { repository.switchDemoUser("student") }) { Text("Student") }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(onClick = { repository.switchDemoUser("teacher") }) { Text("Teacher") }
             }
         }
     }
@@ -488,87 +457,27 @@ fun SignupScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Student Registration",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "Claim your pre-approved BCA class roll number",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 20.dp)
-            )
-
-            if (errorMessage != null) {
-                Text(
-                    text = errorMessage ?: "",
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-
-            OutlinedTextField(
-                value = rollNumber,
-                onValueChange = { rollNumber = it },
-                label = { Text("Roll Number (e.g. BCA015)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            OutlinedTextField(
-                value = fullName,
-                onValueChange = { fullName = it },
-                label = { Text("Full Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email Address") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-
+            Text("Sign Up", style = MaterialTheme.typography.headlineMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(value = fullName, onValueChange = { fullName = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(value = rollNumber, onValueChange = { rollNumber = it }, label = { Text("Roll Number") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = {
-                    if (rollNumber.isBlank() || email.isBlank() || password.isBlank()) {
-                        errorMessage = "Please fill in all registration fields."
-                        return@Button
-                    }
                     val res = repository.signup(fullName, rollNumber, email, password)
-                    if (res.isFailure) {
-                        errorMessage = res.exceptionOrNull()?.message
-                    } else {
-                        Toast.makeText(context, "Welcome to ClassHub, ${res.getOrNull()?.fullName}!", Toast.LENGTH_LONG).show()
-                    }
+                    if (res.isFailure) errorMessage = res.exceptionOrNull()?.message
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text("Verify Roll & Register", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
-
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Sign Up") }
             Spacer(modifier = Modifier.height(12.dp))
-
-            TextButton(onClick = onNavigateToLogin) {
-                Text("Already have an account? Sign In")
+            TextButton(onClick = onNavigateToLogin) { Text("Login") }
+            if (errorMessage != null) {
+                Text(text = errorMessage!!, color = Color.Red)
             }
         }
     }

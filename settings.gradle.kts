@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "ClassHub"
+rootProject.name = "CampuPro"
 
 include(":app")

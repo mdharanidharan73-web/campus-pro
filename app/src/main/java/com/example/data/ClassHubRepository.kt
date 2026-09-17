@@ -103,6 +103,10 @@ class ClassHubRepository private constructor() {
     private val _events = MutableStateFlow<List<com.example.model.EventPost>>(emptyList())
     val events: StateFlow<List<com.example.model.EventPost>> = _events.asStateFlow()
 
+    // Exams
+    private val _exams = MutableStateFlow<List<Exam>>(emptyList())
+    val exams: StateFlow<List<Exam>> = _exams.asStateFlow()
+
     init {
         seedAllData()
     }
@@ -110,7 +114,7 @@ class ClassHubRepository private constructor() {
     private fun seedAllData() {
         // 1. Roster Allowlist for BCA001 to BCA033
         val studentNames = listOf(
-            "Aarav Patel", "Aditi Sharma", "Priya Sundaram", "Rohan Gupta", "Sneha Reddy",
+            "Dharanidharan M", "Aditi Sharma", "Priya Sundaram", "Rohan Gupta", "Sneha Reddy",
             "Vikram Singh", "Rahul Verma", "Ananya Rao", "Karthik Iyer", "Meera Krishnan",
             "Nikhil Joshi", "Pooja Hegde", "Divya Nair", "Arjun Menon", "Varun Prabhu",
             "Ritu Bhat", "Sanjay Kumar", "Deepa Pillai", "Manoj Gowda", "Swathi Shetty",
@@ -158,16 +162,16 @@ class ClassHubRepository private constructor() {
         val allUserList = listOf(teacher1, teacher2) + studentUsers
         _allUsers.value = allUserList
 
-        // Default login to Student Rahul Verma (BCA007) for initial load
-        _currentUser.value = studentUsers.find { it.rollNo == "BCA007" }
+        // Default login to Student Dharanidharan M (BCA001) for initial load
+        _currentUser.value = studentUsers.find { it.fullName.contains("Dharanidharan") } ?: studentUsers.first()
 
         // 4. Subjects
-        val subDbms = Subject("sub_dbms", "DBMS", teacher1.id, teacher1.fullName, isCommon = true)
-        val subPython = Subject("sub_python", "Python Programming", teacher2.id, teacher2.fullName, isCommon = true)
-        val subWeb = Subject("sub_web", "Web Development", teacher1.id, teacher1.fullName, isCommon = true)
-        val subKan = Subject("sub_kannada", "Kannada", teacher2.id, teacher2.fullName, isCommon = false)
-        val subTam = Subject("sub_tamil", "Tamil", teacher2.id, teacher2.fullName, isCommon = false)
-        val subSan = Subject("sub_sanskrit", "Sanskrit", teacher2.id, teacher2.fullName, isCommon = false)
+        val subDbms = Subject("sub_dbms", "Database Systems", teacher1.id, teacher1.fullName, isCommon = true, code = "BCA301", room = "Room 204")
+        val subPython = Subject("sub_python", "Python Programming", teacher2.id, teacher2.fullName, isCommon = true, code = "BCA302", room = "Computing Lab 2")
+        val subWeb = Subject("sub_web", "Web Technologies", teacher1.id, teacher1.fullName, isCommon = true, code = "BCA303", room = "Hall 204")
+        val subKan = Subject("sub_kannada", "Kannada Literature", teacher2.id, teacher2.fullName, isCommon = false, code = "BCA304-K", room = "Room 101")
+        val subTam = Subject("sub_tamil", "Tamil Literature", teacher2.id, teacher2.fullName, isCommon = false, code = "BCA304-T", room = "Room 102")
+        val subSan = Subject("sub_sanskrit", "Sanskrit Shastra", teacher2.id, teacher2.fullName, isCommon = false, code = "BCA304-S", room = "Room 103")
         val subjectList = listOf(subDbms, subPython, subWeb, subKan, subTam, subSan)
         _subjects.value = subjectList
 
@@ -354,31 +358,151 @@ class ClassHubRepository private constructor() {
             )
         )
 
-        // 12. Assignments (Phase 5 stretch)
+        // 12. Assignments
         _assignments.value = listOf(
-            Assignment("asgn_1", "Relational Schema Normalization", subDbms.id, "DBMS", "Decompose table into 3NF and BCNF.", "2026-09-22"),
-            Assignment("asgn_2", "Flask REST API with PostgreSQL", subWeb.id, "Web Development", "Build CRUD endpoints for student portal.", "2026-09-25"),
-            Assignment("asgn_3", "Async I/O Coroutines in Python", subPython.id, "Python", "Solve producer-consumer problem using asyncio.", "2026-09-28")
+            Assignment(
+                id = "asgn_today",
+                title = "B-Tree Indexing & Query Execution Plans",
+                subjectId = subDbms.id,
+                subjectName = "Database Systems",
+                description = "Measure query execution time and analyze EXPLAIN statements with clustered and non-clustered indexes.",
+                dueDate = "2026-09-17",
+                priority = "High"
+            ),
+            Assignment(
+                id = "asgn_1",
+                title = "Relational Schema Normalization (3NF & BCNF)",
+                subjectId = subDbms.id,
+                subjectName = "Database Systems",
+                description = "Decompose student enrollment tables into 3NF and BCNF preserving functional dependencies.",
+                dueDate = "2026-09-22",
+                priority = "High"
+            ),
+            Assignment(
+                id = "asgn_2",
+                title = "RESTful API Endpoints with PostgreSQL",
+                subjectId = subWeb.id,
+                subjectName = "Web Technologies",
+                description = "Implement authenticated student and faculty endpoints with JSON response payloads.",
+                dueDate = "2026-09-25",
+                priority = "Medium"
+            ),
+            Assignment(
+                id = "asgn_3",
+                title = "Async I/O Coroutine Task Pipeline",
+                subjectId = subPython.id,
+                subjectName = "Python Programming",
+                description = "Build a multi-producer asynchronous queue using Python's asyncio module.",
+                dueDate = "2026-09-28",
+                priority = "Medium"
+            ),
+            Assignment(
+                id = "asgn_overdue",
+                title = "Entity-Relationship Data Modeling",
+                subjectId = subDbms.id,
+                subjectName = "Database Systems",
+                description = "Construct an enhanced ER diagram with cardinality and generalization constraints.",
+                dueDate = "2026-09-12",
+                priority = "High"
+            ),
+            Assignment(
+                id = "asgn_comp",
+                title = "Responsive Grid Layout & Typography",
+                subjectId = subWeb.id,
+                subjectName = "Web Technologies",
+                description = "Build a cross-device CSS Grid landing page with modern responsive breakpoints.",
+                dueDate = "2026-09-10",
+                priority = "Low"
+            )
         )
 
+        val defaultStudentId = studentUsers.first().id
         _assignmentStatuses.value = listOf(
-            AssignmentStatus("asgn_1", "student_BCA007", true),
-            AssignmentStatus("asgn_2", "student_BCA007", false)
+            AssignmentStatus("asgn_comp", defaultStudentId, isDone = true),
+            AssignmentStatus("asgn_1", defaultStudentId, isDone = true),
+            AssignmentStatus("asgn_today", defaultStudentId, isDone = false),
+            AssignmentStatus("asgn_2", defaultStudentId, isDone = false),
+            AssignmentStatus("asgn_3", defaultStudentId, isDone = false),
+            AssignmentStatus("asgn_overdue", defaultStudentId, isDone = false)
         )
 
-        // 13. Resources (Phase 5 stretch)
+        // 13. Exams
+        _exams.value = listOf(
+            Exam(
+                id = "ex_1",
+                subjectId = subDbms.id,
+                subjectName = "Database Systems",
+                subjectCode = "BCA301",
+                title = "Midterm Theory Examination",
+                date = "2026-09-24",
+                time = "10:00 AM – 01:00 PM",
+                room = "Auditorium Hall 2",
+                seatNo = "A-18",
+                syllabusTopics = "Units 1–3: Relational Algebra, ER Models, Normalization (1NF to BCNF)"
+            ),
+            Exam(
+                id = "ex_2",
+                subjectId = subPython.id,
+                subjectName = "Python Programming",
+                subjectCode = "BCA302",
+                title = "Midterm Practical Lab Exam",
+                date = "2026-09-29",
+                time = "02:00 PM – 05:00 PM",
+                room = "Computing Lab 2",
+                seatNo = "L-08",
+                syllabusTopics = "OOP Concepts, Asyncio, Lambdas, Generator Pipelines & File I/O"
+            ),
+            Exam(
+                id = "ex_3",
+                subjectId = subWeb.id,
+                subjectName = "Web Technologies",
+                subjectCode = "BCA303",
+                title = "Semester Internal Assessment",
+                date = "2026-10-06",
+                time = "10:00 AM – 01:00 PM",
+                room = "Exam Hall 1B",
+                seatNo = "B-22",
+                syllabusTopics = "HTML5/CSS3, JavaScript ES6+, RESTful APIs, Node runtime & Express"
+            ),
+            Exam(
+                id = "ex_4",
+                subjectId = subKan.id,
+                subjectName = "Language Elective",
+                subjectCode = "BCA304",
+                title = "Term Language Assessment",
+                date = "2026-10-14",
+                time = "10:00 AM – 12:30 PM",
+                room = "Hall 101",
+                seatNo = "C-05",
+                syllabusTopics = "Grammar, Classical Literature Analysis & Technical Translation"
+            )
+        )
+
+        // 14. Resources
         _resources.value = listOf(
-            ResourceItem("res_1", "DBMS Unit 2: SQL & Normalization Handout", subDbms.id, "DBMS", "PDF"),
-            ResourceItem("res_2", "Python Data Structures & OOP Cheatsheet", subPython.id, "Python", "PDF"),
-            ResourceItem("res_3", "Responsive Web Design with Flexbox & Grid", subWeb.id, "Web Development", "PPT"),
-            ResourceItem("res_4", "Lab Manual - Semester 3 BCA Complete", subDbms.id, "DBMS", "DOC")
+            ResourceItem("res_1", "DBMS Unit 2: SQL & Normalization Handout", subDbms.id, "Database Systems", "PDF"),
+            ResourceItem("res_2", "Python Data Structures & OOP Cheatsheet", subPython.id, "Python Programming", "PDF"),
+            ResourceItem("res_3", "Responsive Web Design with Flexbox & Grid", subWeb.id, "Web Technologies", "PPT"),
+            ResourceItem("res_4", "Lab Manual - Semester 3 BCA Complete", subDbms.id, "Database Systems", "DOC")
         )
 
-        // 14. Events
+        // 15. Events
         _events.value = listOf(
             com.example.model.EventPost("ev_1", "", "Annual Tech Fest announced! Dates: Oct 15-18", "Prof. Sharma", "2026-09-12"),
             com.example.model.EventPost("ev_2", "", "Guest Lecture on AI tomorrow at 2 PM in Seminar Hall.", "Prof. Sharma", "2026-09-14")
         )
+    }
+
+    fun toggleAssignmentStatus(assignmentId: String, studentId: String) {
+        val current = _assignmentStatuses.value.toMutableList()
+        val existingIndex = current.indexOfFirst { it.assignmentId == assignmentId && it.studentId == studentId }
+        if (existingIndex >= 0) {
+            val old = current[existingIndex]
+            current[existingIndex] = old.copy(isDone = !old.isDone)
+        } else {
+            current.add(AssignmentStatus(assignmentId = assignmentId, studentId = studentId, isDone = true))
+        }
+        _assignmentStatuses.value = current
     }
 
     fun addEventPost(caption: String, imageUrl: String, postedBy: String) {

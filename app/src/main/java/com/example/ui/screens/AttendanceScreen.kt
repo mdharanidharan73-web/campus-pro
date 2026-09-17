@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.ClassHubRepository
 import com.example.model.Subject
 import com.example.model.User
+import com.example.ui.glass.*
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,9 +58,27 @@ fun AttendanceScreen(
 
     var selectedTab by remember { mutableStateOf(if (markableSubjects.isNotEmpty()) 0 else 1) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background) // Use systemic background
+    ) {
         if (markableSubjects.isNotEmpty()) {
-            TabRow(selectedTabIndex = selectedTab) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.primary,
+                divider = { HorizontalDivider(color = Color.Transparent) },
+                indicator = { tabPositions ->
+                    if (selectedTab < tabPositions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                            height = 3.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            ) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -123,12 +144,20 @@ fun TeacherAttendanceView(
 
     var showConfirmDialog by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Scoped CR message notice if CR
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Mark Attendance",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Scoped CR message notice if CR
         if (currentUser.role == "cr") {
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
@@ -147,159 +176,168 @@ fun TeacherAttendanceView(
             }
         }
 
-        // Subject selector chips
-        Text("Select Subject:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            markableSubjects.forEach { sub ->
-                FilterChip(
-                    selected = selectedSubject.id == sub.id,
-                    onClick = { selectedSubject = sub },
-                    label = { Text(sub.name, fontSize = 12.sp) }
-                )
+            Text("Select Subject", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                markableSubjects.forEach { sub ->
+                    val isSelected = selectedSubject.id == sub.id
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer)
+                            .clickable { selectedSubject = sub }
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = sub.name,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
             }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
+            
+            Spacer(modifier = Modifier.height(24.dp))
 
         // Header with live counts
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(12.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(20.dp)
             ) {
-                Column {
+                Text(
+                    text = "Session Date",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = todayDate,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = "Session Date: $todayDate",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "${enrolledStudents.size} Enrolled",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
-                        text = "Enrolled: ${enrolledStudents.size} students",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFE8F5E9))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text("Present: $presentCount", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFFFEBEE))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text("Absent: $absentCount", color = Color(0xFFC62828), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFFFF3E0))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text("Tardy: $tardyCount", color = Color(0xFFE65100), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("P: $presentCount", color = Color(0xFF34C759), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("A: $absentCount", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("T: $tardyCount", color = Color(0xFFFF9500), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                 }
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text("Student Roster", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(12.dp))
 
         // Student Roster List for marking
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             items(enrolledStudents) { student ->
                 val currentStatus = studentStatuses[student.id] ?: "present"
-                val containerColor = when(currentStatus) { "present" -> Color(0xFFF1F8E9); "absent" -> Color(0xFFFFEBEE); else -> Color(0xFFFFF3E0) }
-                val iconColor = when(currentStatus) { "present" -> Color(0xFF81C784); "absent" -> Color(0xFFE57373); else -> Color(0xFFFFB74D) }
-
+                
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = containerColor),
-
-                    shape = RoundedCornerShape(10.dp)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                            .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(iconColor),
+                                    .background(MaterialTheme.colorScheme.secondaryContainer),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = student.rollNo?.takeLast(2) ?: "ST",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
                                     text = student.fullName,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = student.rollNo ?: "",
-                                    fontSize = 11.sp,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            FilterChip(
-                                selected = currentStatus == "present",
-                                onClick = { studentStatuses[student.id] = "present" },
-                                label = { Text("P", fontSize = 11.sp) },
-                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFC8E6C9), selectedLabelColor = Color(0xFF2E7D32))
-                            )
-                            FilterChip(
-                                selected = currentStatus == "tardy",
-                                onClick = { studentStatuses[student.id] = "tardy" },
-                                label = { Text("T", fontSize = 11.sp) },
-                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFE0B2), selectedLabelColor = Color(0xFFE65100))
-                            )
-                            FilterChip(
-                                selected = currentStatus == "absent",
-                                onClick = { studentStatuses[student.id] = "absent" },
-                                label = { Text("A", fontSize = 11.sp) },
-                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFCDD2), selectedLabelColor = Color(0xFFC62828))
-                            )
+                        // iOS styled segmented-like controls for status
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.background)
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            val options = listOf("present" to "P", "tardy" to "T", "absent" to "A")
+                            options.forEach { (statusKey, label) ->
+                                val isSelected = currentStatus == statusKey
+                                val activeColor = when(statusKey) {
+                                    "present" -> Color(0xFF34C759)
+                                    "tardy" -> Color(0xFFFF9500)
+                                    else -> Color(0xFFFF3B30)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) activeColor else Color.Transparent)
+                                        .clickable { studentStatuses[student.id] = statusKey }
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         val summaryText = buildString {
             append("$presentCount Present")
@@ -311,12 +349,14 @@ fun TeacherAttendanceView(
             onClick = { showConfirmDialog = true },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp),
-            shape = RoundedCornerShape(10.dp)
+                .height(56.dp)
+                .padding(bottom = 8.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            Icon(Icons.Default.Save, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Save Attendance ($summaryText)")
+            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+            Text("Save Attendance", style = MaterialTheme.typography.titleMedium)
         }
     }
 
@@ -397,45 +437,51 @@ fun StudentAttendanceView(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = studentTab) {
-            Tab(
-                selected = studentTab == 0,
-                onClick = { studentTab = 0 },
-                text = { Text("Overview & Calculator") }
-            )
-            Tab(
-                selected = studentTab == 1,
-                onClick = { studentTab = 1 },
-                text = { Text("Attendance History (${historyItems.size})") }
-            )
-        }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Apple Liquid Glass Segmented Control
+        GlassSegmentedControl(
+            items = listOf("Overview & Calculator", "Attendance History (${historyItems.size})"),
+            selectedIndex = studentTab,
+            onItemSelected = { studentTab = it },
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+        )
 
         if (studentTab == 0) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
             ) {
+                item {
+                    Text("Overview", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
                 // Safe-to-Bunk Formula Explained Card
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                        shape = RoundedCornerShape(12.dp)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
+                        shape = RoundedCornerShape(20.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Calculate, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Icon(Icons.Default.Calculate, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Safe-to-Bunk Calculator", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Text("Safe-to-Bunk Calculator", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Formula: Keeps your attendance above ${settings.minAttendancePercent}%. Shows how many classes you can skip based on current schedule.",
                                 fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 16.sp
                             )
                         }
@@ -446,10 +492,12 @@ fun StudentAttendanceView(
                 items(attendanceSummaries) { item ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -458,12 +506,13 @@ fun StudentAttendanceView(
                                 Column {
                                     Text(
                                         text = item.subject.name,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "${item.attendedCount} / ${item.heldCount} classes attended" + (if (item.tardyCount > 0) " (${item.tardyCount} tardy)" else ""),
-                                        fontSize = 12.sp,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -491,9 +540,9 @@ fun StudentAttendanceView(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(12.dp))
                                     .background(if (item.safeSkips <= 1) Color(0xFFFFEBEE) else Color(0xFFE8F5E9))
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -538,53 +587,60 @@ fun StudentAttendanceView(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
+                    .padding(horizontal = 20.dp)
             ) {
-                // Status Filter Chips
-                Text("Filter by Status:", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("History", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Status Filter 
+                Text("Filter by Status", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf("all" to "All", "present" to "Present", "tardy" to "Tardy", "absent" to "Absent").forEach { (key, label) ->
-                        FilterChip(
-                            selected = selectedStatusFilter == key,
-                            onClick = { selectedStatusFilter = key },
-                            label = { Text(label, fontSize = 12.sp) }
+                        val isSelected = selectedStatusFilter == key
+                        GlassCapsule(
+                            text = label,
+                            isSelected = isSelected,
+                            onClick = { selectedStatusFilter = key }
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Subject Filter Chips
                 val enrolledSubjectNames = remember(attendanceSummaries) {
                     attendanceSummaries.map { it.subject.name }
                 }
                 if (enrolledSubjectNames.isNotEmpty()) {
-                    Text("Filter by Subject:", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
+                    Text("Filter by Subject", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.foundation.lazy.LazyRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        FilterChip(
-                            selected = selectedSubjectFilter == "all",
-                            onClick = { selectedSubjectFilter = "all" },
-                            label = { Text("All Subjects", fontSize = 12.sp) }
-                        )
-                        enrolledSubjectNames.forEach { subName ->
-                            FilterChip(
-                                selected = selectedSubjectFilter == subName,
-                                onClick = { selectedSubjectFilter = subName },
-                                label = { Text(subName.take(15), fontSize = 12.sp) }
+                        item {
+                            GlassCapsule(
+                                text = "All",
+                                isSelected = selectedSubjectFilter == "all",
+                                onClick = { selectedSubjectFilter = "all" }
+                            )
+                        }
+                        items(enrolledSubjectNames) { subName ->
+                            GlassCapsule(
+                                text = subName,
+                                isSelected = selectedSubjectFilter == subName,
+                                onClick = { selectedSubjectFilter = subName }
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 if (filteredHistory.isEmpty()) {
                     Box(
@@ -598,18 +654,19 @@ fun StudentAttendanceView(
                 } else {
                     LazyColumn(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 100.dp)
                     ) {
                         items(filteredHistory) { hist ->
                             val statusBg = when (hist.status.lowercase()) {
-                                "present" -> Color(0xFFE8F5E9)
-                                "tardy" -> Color(0xFFFFF3E0)
-                                else -> Color(0xFFFFEBEE)
+                                "present" -> Color(0xFF34C759).copy(alpha = 0.15f)
+                                "tardy" -> Color(0xFFFF9500).copy(alpha = 0.15f)
+                                else -> Color(0xFFFF3B30).copy(alpha = 0.15f)
                             }
                             val statusColor = when (hist.status.lowercase()) {
-                                "present" -> Color(0xFF2E7D32)
-                                "tardy" -> Color(0xFFE65100)
-                                else -> Color(0xFFC62828)
+                                "present" -> Color(0xFF34C759)
+                                "tardy" -> Color(0xFFFF9500)
+                                else -> Color(0xFFFF3B30)
                             }
                             val statusIcon = when (hist.status.lowercase()) {
                                 "present" -> Icons.Default.CheckCircle
@@ -619,20 +676,22 @@ fun StudentAttendanceView(
 
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(14.dp),
+                                        .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Box(
                                             modifier = Modifier
-                                                .size(40.dp)
+                                                .size(44.dp)
                                                 .clip(CircleShape)
                                                 .background(statusBg),
                                             contentAlignment = Alignment.Center
@@ -641,19 +700,20 @@ fun StudentAttendanceView(
                                                 statusIcon,
                                                 contentDescription = hist.status,
                                                 tint = statusColor,
-                                                modifier = Modifier.size(22.dp)
+                                                modifier = Modifier.size(24.dp)
                                             )
                                         }
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Spacer(modifier = Modifier.width(16.dp))
                                         Column {
                                             Text(
                                                 text = hist.subjectName,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.SemiBold
                                             )
+                                            Spacer(modifier = Modifier.height(2.dp))
                                             Text(
-                                                text = "Session Date: ${hist.date}",
-                                                fontSize = 12.sp,
+                                                text = hist.date,
+                                                style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
@@ -661,15 +721,15 @@ fun StudentAttendanceView(
 
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(statusBg)
-                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(statusColor)
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
                                         Text(
-                                            text = hist.status.replaceFirstChar { it.uppercase() },
-                                            color = statusColor,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
+                                            text = hist.status.uppercase(),
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
