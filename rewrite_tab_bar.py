@@ -1,4 +1,7 @@
-package com.example.ui.glass
+import re
+
+with open("app/src/main/java/com/example/ui/glass/GlassTabBar.kt", "w") as f:
+    f.write("""package com.example.ui.glass
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -101,7 +104,7 @@ fun GlassTabBar(
                 // so it can have its own animated internal lighting
                 .graphicsLayer {
                     // Slight scale on the Y axis during fast movement to simulate fluid compression
-                    val isMoving = kotlin.math.abs((animatedRight - targetRight).value) > 1f
+                    val isMoving = (animatedRight - targetRight).value.kotlin.math.abs(0f) > 1f
                     // Just simple scaling for now, but keeping depth
                     shadowElevation = 4.dp.toPx()
                     shape = RoundedCornerShape(22.dp)
@@ -116,7 +119,7 @@ fun GlassTabBar(
                             Color(0x400A84FF) // Subtle blue optical tint
                         ),
                         start = Offset(0f, 0f),
-                        end = Offset(0f, 1000f)
+                        end = Offset(0f, Float.POSITIVE_INFINITY)
                     )
                 )
                 // Internal animated specular light (moving highlight)
@@ -222,3 +225,4 @@ fun GlassTabBar(
         }
     }
 }
+""")

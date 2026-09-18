@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -127,7 +128,7 @@ fun ClassesScreen(
                     subject.name.contains("Data", ignoreCase = true) -> Icons.Default.Storage
                     subject.name.contains("Python", ignoreCase = true) -> Icons.Default.Code
                     subject.name.contains("Web", ignoreCase = true) -> Icons.Default.Language
-                    subject.name.contains("Literature", ignoreCase = true) || subject.name.contains("Kannada", ignoreCase = true) || subject.name.contains("Tamil", ignoreCase = true) -> Icons.Default.MenuBook
+                    subject.name.contains("Literature", ignoreCase = true) || subject.name.contains("Kannada", ignoreCase = true) || subject.name.contains("Tamil", ignoreCase = true) -> Icons.AutoMirrored.Filled.MenuBook
                     else -> Icons.Default.School
                 }
 

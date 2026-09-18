@@ -1,7 +1,7 @@
-package com.example.ui.screens
+with open("app/src/main/java/com/example/ui/screens/StudentDashboardScreen.kt", "w") as f:
+    f.write("""package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -342,7 +342,7 @@ fun CourseCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                    imageVector = Icons.Default.MenuBook,
                     contentDescription = null,
                     tint = CampuProDesign.TileIndigoIcon,
                     modifier = Modifier.size(20.dp)
@@ -407,13 +407,13 @@ fun DeadlineCard(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(CampuProDesign.AccentMagenta.copy(alpha = 0.15f)),
+                    .background(CampuProDesign.WarningBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.Assignment,
+                    Icons.Default.Assignment,
                     contentDescription = null,
-                    tint = CampuProDesign.AccentMagenta,
+                    tint = CampuProDesign.WarningText,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -445,7 +445,7 @@ fun DeadlineCard(
                         text = "Due: ${assignment.dueDate}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = CampuProDesign.AccentMagenta
+                        color = CampuProDesign.ErrorText
                     )
                 }
             }
@@ -495,3 +495,4 @@ fun QuickActionTile(
         )
     }
 }
+""")

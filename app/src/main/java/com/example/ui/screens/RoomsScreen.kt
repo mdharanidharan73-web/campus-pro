@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -351,7 +352,7 @@ fun ChatView(
                     .clip(RoundedCornerShape(23.dp))
                     .background(MaterialTheme.colorScheme.primary)
             ) {
-                Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.White)
             }
         }
     }
