@@ -129,7 +129,14 @@ class ClassHubRepository private constructor() {
         }
         _rosterAllowlist.value = allowlist
 
-        // 2. Teachers
+        // 2. Admin & Teachers
+        val adminUser = User(
+            id = "admin_01",
+            fullName = "Campus Administrator",
+            role = "admin",
+            email = "admin@campupro.edu",
+            createdAt = "2026-08-01"
+        )
         val teacher1 = User(
             id = "teach_01",
             fullName = "Prof. Rajesh Sharma",
@@ -159,7 +166,7 @@ class ClassHubRepository private constructor() {
             )
         }
 
-        val allUserList = listOf(teacher1, teacher2) + studentUsers
+        val allUserList = listOf(adminUser, teacher1, teacher2) + studentUsers
         _allUsers.value = allUserList
 
         // Default login to Student Dharanidharan M (BCA001) for initial load
@@ -565,6 +572,7 @@ class ClassHubRepository private constructor() {
     fun switchDemoUser(role: String, specificId: String? = null) {
         val targetUser = when {
             specificId != null -> _allUsers.value.find { it.id == specificId }
+            role == "admin" -> _allUsers.value.find { it.role == "admin" }
             role == "teacher" -> _allUsers.value.find { it.role == "teacher" }
             role == "cr" -> _allUsers.value.find { it.role == "cr" }
             else -> _allUsers.value.find { it.rollNo == "BCA007" } ?: _allUsers.value.firstOrNull { it.role == "student" }
@@ -896,5 +904,440 @@ class ClassHubRepository private constructor() {
     // --- Settings Management (Teacher) ---
     fun updateSettings(minAttendance: Int, semesterEnd: String) {
         _settings.value = AppSettings(minAttendancePercent = minAttendance, semesterEndDate = semesterEnd)
+    }
+
+    // =========================================================================
+    // --- ADMIN-ONLY REAL DATA MANAGEMENT (BACKEND ENFORCED AUTHORIZATION) ---
+    // =========================================================================
+
+    private fun requireAdmin(actor: User) {
+        if (actor.role != "admin") {
+            throw SecurityException("Access Denied: Administrator privileges are required to perform this action.")
+        }
+    }
+
+    // 1. Classes / Subjects CRUD
+    fun addSubject(actor: User, name: String, code: String, facultyName: String, room: String): Result<Subject> {
+        return try {
+            requireAdmin(actor)
+            if (name.isBlank() || code.isBlank() || facultyName.isBlank() || room.isBlank()) {
+                return Result.failure(IllegalArgumentException("All subject fields (name, code, faculty, room) are required."))
+            }
+            val newSubject = Subject(
+                id = "sub_${System.currentTimeMillis()}",
+                name = name.trim(),
+                facultyName = facultyName.trim(),
+                isCommon = true,
+                code = code.trim().uppercase(),
+                room = room.trim()
+            )
+            _subjects.value = _subjects.value + newSubject
+
+            // Automatically enroll all existing students in common subjects
+            val newEnrollments = _allUsers.value
+                .filter { it.role == "student" || it.role == "cr" }
+                .map { SubjectEnrollment(it.id, newSubject.id) }
+            _enrollments.value = _enrollments.value + newEnrollments
+
+            Result.success(newSubject)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun updateSubject(actor: User, id: String, name: String, code: String, facultyName: String, room: String): Result<Subject> {
+        return try {
+            requireAdmin(actor)
+            if (name.isBlank() || code.isBlank() || facultyName.isBlank() || room.isBlank()) {
+                return Result.failure(IllegalArgumentException("All subject fields (name, code, faculty, room) are required."))
+            }
+            val list = _subjects.value.toMutableList()
+            val index = list.indexOfFirst { it.id == id }
+            if (index < 0) return Result.failure(IllegalArgumentException("Subject not found."))
+            val updated = list[index].copy(
+                name = name.trim(),
+                code = code.trim().uppercase(),
+                facultyName = facultyName.trim(),
+                room = room.trim()
+            )
+            list[index] = updated
+            _subjects.value = list
+            Result.success(updated)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteSubject(actor: User, id: String): Result<Unit> {
+        return try {
+            requireAdmin(actor)
+            _subjects.value = _subjects.value.filterNot { it.id == id }
+            _timetableSlots.value = _timetableSlots.value.filterNot { it.subjectId == id }
+            _enrollments.value = _enrollments.value.filterNot { it.subjectId == id }
+            _assignments.value = _assignments.value.filterNot { it.subjectId == id }
+            _exams.value = _exams.value.filterNot { it.subjectId == id }
+            _attendanceSessions.value = _attendanceSessions.value.filterNot { it.subjectId == id }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 2. Faculty CRUD
+    fun addFaculty(actor: User, fullName: String, email: String): Result<User> {
+        return try {
+            requireAdmin(actor)
+            if (fullName.isBlank() || email.isBlank()) {
+                return Result.failure(IllegalArgumentException("Faculty name and email are required."))
+            }
+            val newFaculty = User(
+                id = "teach_${System.currentTimeMillis()}",
+                fullName = fullName.trim(),
+                role = "teacher",
+                email = email.trim().lowercase(),
+                createdAt = LocalDate.now().toString()
+            )
+            _allUsers.value = _allUsers.value + newFaculty
+            Result.success(newFaculty)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun updateFaculty(actor: User, id: String, fullName: String, email: String): Result<User> {
+        return try {
+            requireAdmin(actor)
+            if (fullName.isBlank() || email.isBlank()) {
+                return Result.failure(IllegalArgumentException("Faculty name and email are required."))
+            }
+            val list = _allUsers.value.toMutableList()
+            val index = list.indexOfFirst { it.id == id && it.role == "teacher" }
+            if (index < 0) return Result.failure(IllegalArgumentException("Faculty member not found."))
+            val updated = list[index].copy(fullName = fullName.trim(), email = email.trim().lowercase())
+            list[index] = updated
+            _allUsers.value = list
+            Result.success(updated)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteFaculty(actor: User, id: String): Result<Unit> {
+        return try {
+            requireAdmin(actor)
+            _allUsers.value = _allUsers.value.filterNot { it.id == id }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 3. Students CRUD
+    fun addStudent(actor: User, fullName: String, rollNo: String, email: String): Result<User> {
+        return try {
+            requireAdmin(actor)
+            if (fullName.isBlank() || rollNo.isBlank() || email.isBlank()) {
+                return Result.failure(IllegalArgumentException("Student name, roll number, and email are required."))
+            }
+            val cleanRoll = rollNo.trim().uppercase()
+            val newStudent = User(
+                id = "student_$cleanRoll",
+                fullName = fullName.trim(),
+                rollNo = cleanRoll,
+                role = "student",
+                email = email.trim().lowercase(),
+                createdAt = LocalDate.now().toString()
+            )
+            _allUsers.value = _allUsers.value + newStudent
+
+            // Auto enroll in common subjects
+            val common = _subjects.value.filter { it.isCommon }
+            _enrollments.value = _enrollments.value + common.map { SubjectEnrollment(newStudent.id, it.id) }
+            Result.success(newStudent)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun updateStudent(actor: User, id: String, fullName: String, rollNo: String, email: String): Result<User> {
+        return try {
+            requireAdmin(actor)
+            if (fullName.isBlank() || rollNo.isBlank() || email.isBlank()) {
+                return Result.failure(IllegalArgumentException("Student name, roll number, and email are required."))
+            }
+            val list = _allUsers.value.toMutableList()
+            val index = list.indexOfFirst { it.id == id }
+            if (index < 0) return Result.failure(IllegalArgumentException("Student not found."))
+            val updated = list[index].copy(
+                fullName = fullName.trim(),
+                rollNo = rollNo.trim().uppercase(),
+                email = email.trim().lowercase()
+            )
+            list[index] = updated
+            _allUsers.value = list
+            Result.success(updated)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteStudent(actor: User, id: String): Result<Unit> {
+        return try {
+            requireAdmin(actor)
+            _allUsers.value = _allUsers.value.filterNot { it.id == id }
+            _enrollments.value = _enrollments.value.filterNot { it.studentId == id }
+            _attendanceRecords.value = _attendanceRecords.value.filterNot { it.studentId == id }
+            _assignmentStatuses.value = _assignmentStatuses.value.filterNot { it.studentId == id }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 4. Schedule (Timetable Slots) CRUD
+    fun addTimetableSlot(actor: User, subjectId: String, dayOfWeek: Int, startTime: String, endTime: String, room: String): Result<TimetableSlot> {
+        return try {
+            requireAdmin(actor)
+            if (subjectId.isBlank() || startTime.isBlank() || endTime.isBlank() || room.isBlank()) {
+                return Result.failure(IllegalArgumentException("Subject, day, start time, end time, and room are required."))
+            }
+            if (dayOfWeek !in 1..7) {
+                return Result.failure(IllegalArgumentException("Day of week must be between 1 (Monday) and 7 (Sunday)."))
+            }
+            val newSlot = TimetableSlot(
+                id = "slot_${System.currentTimeMillis()}",
+                subjectId = subjectId,
+                dayOfWeek = dayOfWeek,
+                startTime = startTime.trim(),
+                endTime = endTime.trim(),
+                room = room.trim()
+            )
+            _timetableSlots.value = _timetableSlots.value + newSlot
+            Result.success(newSlot)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun updateTimetableSlot(actor: User, id: String, subjectId: String, dayOfWeek: Int, startTime: String, endTime: String, room: String): Result<TimetableSlot> {
+        return try {
+            requireAdmin(actor)
+            if (subjectId.isBlank() || startTime.isBlank() || endTime.isBlank() || room.isBlank()) {
+                return Result.failure(IllegalArgumentException("Subject, day, start time, end time, and room are required."))
+            }
+            val list = _timetableSlots.value.toMutableList()
+            val index = list.indexOfFirst { it.id == id }
+            if (index < 0) return Result.failure(IllegalArgumentException("Schedule slot not found."))
+            val updated = list[index].copy(
+                subjectId = subjectId,
+                dayOfWeek = dayOfWeek,
+                startTime = startTime.trim(),
+                endTime = endTime.trim(),
+                room = room.trim()
+            )
+            list[index] = updated
+            _timetableSlots.value = list
+            Result.success(updated)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteTimetableSlot(actor: User, id: String): Result<Unit> {
+        return try {
+            requireAdmin(actor)
+            _timetableSlots.value = _timetableSlots.value.filterNot { it.id == id }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 5. Assignments CRUD
+    fun addAssignmentAdmin(actor: User, title: String, subjectId: String, description: String, dueDate: String, priority: String): Result<Assignment> {
+        return try {
+            requireAdmin(actor)
+            if (title.isBlank() || subjectId.isBlank() || description.isBlank() || dueDate.isBlank()) {
+                return Result.failure(IllegalArgumentException("Subject, title, description, and due date are required."))
+            }
+            val sub = _subjects.value.find { it.id == subjectId }
+            val newAsgn = Assignment(
+                id = "asgn_${System.currentTimeMillis()}",
+                title = title.trim(),
+                subjectId = subjectId,
+                subjectName = sub?.name ?: "Subject",
+                description = description.trim(),
+                dueDate = dueDate.trim(),
+                priority = priority.ifBlank { "Medium" }
+            )
+            _assignments.value = _assignments.value + newAsgn
+            Result.success(newAsgn)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun updateAssignmentAdmin(actor: User, id: String, title: String, subjectId: String, description: String, dueDate: String, priority: String): Result<Assignment> {
+        return try {
+            requireAdmin(actor)
+            if (title.isBlank() || subjectId.isBlank() || description.isBlank() || dueDate.isBlank()) {
+                return Result.failure(IllegalArgumentException("Subject, title, description, and due date are required."))
+            }
+            val sub = _subjects.value.find { it.id == subjectId }
+            val list = _assignments.value.toMutableList()
+            val index = list.indexOfFirst { it.id == id }
+            if (index < 0) return Result.failure(IllegalArgumentException("Assignment not found."))
+            val updated = list[index].copy(
+                title = title.trim(),
+                subjectId = subjectId,
+                subjectName = sub?.name ?: list[index].subjectName,
+                description = description.trim(),
+                dueDate = dueDate.trim(),
+                priority = priority
+            )
+            list[index] = updated
+            _assignments.value = list
+            Result.success(updated)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteAssignmentAdmin(actor: User, id: String): Result<Unit> {
+        return try {
+            requireAdmin(actor)
+            _assignments.value = _assignments.value.filterNot { it.id == id }
+            _assignmentStatuses.value = _assignmentStatuses.value.filterNot { it.assignmentId == id }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 6. Exams CRUD
+    fun addExamAdmin(actor: User, title: String, subjectId: String, date: String, time: String, room: String, seatNo: String, syllabusTopics: String): Result<Exam> {
+        return try {
+            requireAdmin(actor)
+            if (title.isBlank() || subjectId.isBlank() || date.isBlank() || time.isBlank() || room.isBlank()) {
+                return Result.failure(IllegalArgumentException("Subject, title, date, time, and room are required."))
+            }
+            val sub = _subjects.value.find { it.id == subjectId }
+            val newExam = Exam(
+                id = "ex_${System.currentTimeMillis()}",
+                subjectId = subjectId,
+                subjectName = sub?.name ?: "Subject",
+                subjectCode = sub?.code ?: "BCA301",
+                title = title.trim(),
+                date = date.trim(),
+                time = time.trim(),
+                room = room.trim(),
+                seatNo = seatNo.ifBlank { "Unassigned" },
+                syllabusTopics = syllabusTopics.ifBlank { "All units" }
+            )
+            _exams.value = _exams.value + newExam
+            Result.success(newExam)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun updateExamAdmin(actor: User, id: String, title: String, subjectId: String, date: String, time: String, room: String, seatNo: String, syllabusTopics: String): Result<Exam> {
+        return try {
+            requireAdmin(actor)
+            if (title.isBlank() || subjectId.isBlank() || date.isBlank() || time.isBlank() || room.isBlank()) {
+                return Result.failure(IllegalArgumentException("Subject, title, date, time, and room are required."))
+            }
+            val sub = _subjects.value.find { it.id == subjectId }
+            val list = _exams.value.toMutableList()
+            val index = list.indexOfFirst { it.id == id }
+            if (index < 0) return Result.failure(IllegalArgumentException("Exam not found."))
+            val updated = list[index].copy(
+                subjectId = subjectId,
+                subjectName = sub?.name ?: list[index].subjectName,
+                subjectCode = sub?.code ?: list[index].subjectCode,
+                title = title.trim(),
+                date = date.trim(),
+                time = time.trim(),
+                room = room.trim(),
+                seatNo = seatNo.trim(),
+                syllabusTopics = syllabusTopics.trim()
+            )
+            list[index] = updated
+            _exams.value = list
+            Result.success(updated)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteExamAdmin(actor: User, id: String): Result<Unit> {
+        return try {
+            requireAdmin(actor)
+            _exams.value = _exams.value.filterNot { it.id == id }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 7. Attendance Session Management (Admin)
+    fun deleteAttendanceSessionAdmin(actor: User, sessionId: String): Result<Unit> {
+        return try {
+            requireAdmin(actor)
+            _attendanceSessions.value = _attendanceSessions.value.filterNot { it.id == sessionId }
+            _attendanceRecords.value = _attendanceRecords.value.filterNot { it.sessionId == sessionId }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 8. Announcements CRUD
+    fun addAnnouncementAdmin(actor: User, caption: String, postedBy: String): Result<com.example.model.EventPost> {
+        return try {
+            requireAdmin(actor)
+            if (caption.isBlank()) {
+                return Result.failure(IllegalArgumentException("Announcement message cannot be empty."))
+            }
+            val newEvent = com.example.model.EventPost(
+                id = "ev_${System.currentTimeMillis()}",
+                imageUrl = "",
+                caption = caption.trim(),
+                postedBy = postedBy.ifBlank { "Administration" },
+                date = LocalDate.now().toString()
+            )
+            _events.value = listOf(newEvent) + _events.value
+            Result.success(newEvent)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun updateAnnouncementAdmin(actor: User, id: String, caption: String): Result<com.example.model.EventPost> {
+        return try {
+            requireAdmin(actor)
+            if (caption.isBlank()) {
+                return Result.failure(IllegalArgumentException("Announcement message cannot be empty."))
+            }
+            val list = _events.value.toMutableList()
+            val index = list.indexOfFirst { it.id == id }
+            if (index < 0) return Result.failure(IllegalArgumentException("Announcement not found."))
+            val updated = list[index].copy(caption = caption.trim())
+            list[index] = updated
+            _events.value = list
+            Result.success(updated)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun deleteAnnouncementAdmin(actor: User, id: String): Result<Unit> {
+        return try {
+            requireAdmin(actor)
+            _events.value = _events.value.filterNot { it.id == id }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

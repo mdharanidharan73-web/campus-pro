@@ -108,17 +108,7 @@ fun GlassTabBar(
                     clip = true
                 }
                 .clip(RoundedCornerShape(22.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color(0x351C1C1E),
-                            Color(0x602C2C2E),
-                            Color(0x400A84FF) // Subtle blue optical tint
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(0f, 1000f)
-                    )
-                )
+                .background(CampuProDesign.NavBubbleBackground)
                 // Internal animated specular light (moving highlight)
                 .drawWithCache {
                     val w = size.width
@@ -137,7 +127,7 @@ fun GlassTabBar(
                     
                     val innerGlowBrush = Brush.radialGradient(
                         colors = listOf(
-                            Color(0x250A84FF), // soft blue inner luminance
+                            Color(0x200A84FF), // soft blue inner luminance
                             Color.Transparent
                         ),
                         center = Offset(w * 0.5f, h * 0.5f),
@@ -153,13 +143,7 @@ fun GlassTabBar(
                 // Extremely subtle edge highlight
                 .border(
                     width = 0.5.dp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0x60FFFFFF),
-                            Color(0x10FFFFFF),
-                            Color(0x300A84FF)
-                        )
-                    ),
+                    brush = CampuProDesign.NavBubbleBorder,
                     shape = RoundedCornerShape(22.dp)
                 )
         )
@@ -177,13 +161,13 @@ fun GlassTabBar(
                 
                 // Animate icons/labels to pop more when selected
                 val iconColor by animateColorAsState(
-                    targetValue = if (isSelected) CampuProDesign.AccentBlue else Color(0x99FFFFFF), // Muted white/gray
+                    targetValue = if (isSelected) CampuProDesign.NavIconSelected else CampuProDesign.NavIconUnselected,
                     animationSpec = tween(300),
                     label = "IconColor"
                 )
                 
                 val textColor by animateColorAsState(
-                    targetValue = if (isSelected) Color(0xFFFFFFFF) else Color(0x80FFFFFF),
+                    targetValue = if (isSelected) CampuProDesign.NavTextSelected else CampuProDesign.NavTextUnselected,
                     animationSpec = tween(300),
                     label = "TextColor"
                 )
@@ -196,10 +180,8 @@ fun GlassTabBar(
                             interactionSource = interactionSource,
                             indication = null // Bubble acts as the visual indication
                         ) {
-                            if (currentTab != tab) {
-                                haptics?.lightImpact() // smooth touch response
-                                onTabSelected(tab)
-                            }
+                            haptics?.lightImpact()
+                            onTabSelected(tab)
                         },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center

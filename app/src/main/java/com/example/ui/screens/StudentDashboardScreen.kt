@@ -96,7 +96,7 @@ fun StudentDashboardScreen(
                         color = CampuProDesign.TextPrimary
                     )
                     Text(
-                        text = user.role.uppercase(),
+                        text = user.rollNo ?: user.role.uppercase(),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = CampuProDesign.AccentBlue

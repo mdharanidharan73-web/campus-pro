@@ -105,52 +105,66 @@ fun TimetableScreen(user: com.example.model.User, repository: com.example.data.C
 
         // 3. Class Cards
         item {
+            val timetableSlots by repository.timetableSlots.collectAsState()
+            val subjects by repository.subjects.collectAsState()
+            val dayOfWeekNum = selectedDay + 1
+            val daySlots = timetableSlots.filter { it.dayOfWeek == dayOfWeekNum }.sortedBy { it.startTime }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                ClassCard(
-                    startTime = "08:30", endTime = "09:30",
-                    title = "Data Structures",
-                    code = "BCA301", room = "Room 201",
-                    accentColor = CampuProDesign.AccentBlue,
-                    icon = Icons.Default.Storage,
-                    isHighlighted = false
-                )
-                ClassCard(
-                    startTime = "10:15", endTime = "11:15",
-                    title = "Web Technologies",
-                    code = "BCA303", room = "Room 204",
-                    accentColor = CampuProDesign.AccentBlue,
-                    icon = Icons.Default.LaptopMac,
-                    isHighlighted = true
-                )
-                ClassCard(
-                    startTime = "11:30", endTime = "12:30",
-                    title = "Database Management Systems",
-                    code = "BCA302", room = "Room 203",
-                    accentColor = CampuProDesign.AccentViolet,
-                    icon = Icons.Default.Storage,
-                    isHighlighted = false
-                )
-                ClassCard(
-                    startTime = "01:30", endTime = "02:30",
-                    title = "Computer Networks",
-                    code = "BCA304", room = "Room 205",
-                    accentColor = CampuProDesign.AccentGreen,
-                    icon = Icons.Default.Hub,
-                    isHighlighted = false
-                )
-                ClassCard(
-                    startTime = "02:45", endTime = "03:45",
-                    title = "Operating Systems",
-                    code = "BCA305", room = "Room 206",
-                    accentColor = CampuProDesign.AccentMagenta,
-                    icon = Icons.Default.Settings,
-                    isHighlighted = false
-                )
+                if (daySlots.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = CampuProDesign.CardBackground),
+                        border = BorderStroke(1.dp, CampuProDesign.CardBorder)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EventAvailable,
+                                contentDescription = null,
+                                tint = CampuProDesign.TextSecondary,
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "No classes scheduled for this day",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = CampuProDesign.TextSecondary
+                            )
+                        }
+                    }
+                } else {
+                    daySlots.forEachIndexed { idx, slot ->
+                        val subject = subjects.find { it.id == slot.subjectId }
+                        val accentColor = when (idx % 4) {
+                            0 -> CampuProDesign.AccentBlue
+                            1 -> CampuProDesign.AccentViolet
+                            2 -> CampuProDesign.AccentGreen
+                            else -> CampuProDesign.AccentMagenta
+                        }
+                        ClassCard(
+                            startTime = slot.startTime,
+                            endTime = slot.endTime,
+                            title = subject?.name ?: "Scheduled Class",
+                            code = subject?.code ?: "CSE",
+                            room = slot.room,
+                            accentColor = accentColor,
+                            icon = Icons.Default.School,
+                            isHighlighted = idx == 0
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
         }

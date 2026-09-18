@@ -56,7 +56,7 @@ fun GlassInputBar(
                     variant = GlassVariant.REGULAR,
                     elevation = 10.dp,
                     borderWidth = 1.dp,
-                    interactive = true
+                    interactive = false
                 )
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -127,7 +127,7 @@ fun GlassInputBar(
                         tint = if (canSend) brandBlue else brandBlue.copy(alpha = 0.35f),
                         elevation = if (canSend) 4.dp else 0.dp,
                         interactive = canSend,
-                        onClick = if (canSend) { { onSend(inputText) } } else null
+                        onClick = if (canSend) ({ onSend(inputText) }) else null
                     ),
                 contentAlignment = Alignment.Center
             ) {

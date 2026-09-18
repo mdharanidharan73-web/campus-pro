@@ -112,12 +112,13 @@ fun MainAppShell(
     var currentTab by rememberSaveable { androidx.compose.runtime.mutableStateOf(com.example.navigation.CampuProTab.TODAY) }
 
     Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding())
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             Box(
                 modifier = Modifier
@@ -209,6 +210,7 @@ fun MainAppShell(
                                         "cr_permissions" -> navController.navigate("cr_permissions")
                                         "stretch" -> navController.navigate("stretch")
                                         "settings" -> navController.navigate("settings")
+                                        "admin_panel" -> navController.navigate("admin_panel")
                                     }
                                 }
                             )
@@ -295,6 +297,15 @@ fun MainAppShell(
                     composable("stretch") {
                         Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
                             StretchFeaturesScreen(user = currentUser, repository = repository)
+                        }
+                    }
+                    composable("admin_panel") {
+                        Column(modifier = Modifier.iosSwipeBack(enabled = true, onPop = { navController.popBackStack() })) {
+                            AdminPanelScreen(
+                                user = currentUser,
+                                repository = repository,
+                                onBack = { navController.popBackStack() }
+                            )
                         }
                     }
                 }
@@ -431,6 +442,8 @@ fun LoginScreen(
                 Button(onClick = { repository.switchDemoUser("student") }) { Text("Student") }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(onClick = { repository.switchDemoUser("teacher") }) { Text("Teacher") }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(onClick = { repository.switchDemoUser("admin") }) { Text("Admin") }
             }
         }
     }

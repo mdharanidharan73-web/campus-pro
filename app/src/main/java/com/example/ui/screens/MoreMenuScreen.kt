@@ -35,7 +35,7 @@ fun MoreMenuScreen(
             .fillMaxSize()
             .background(CampuProDesign.AppBackground)
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 20.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(top = 20.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
@@ -161,6 +161,19 @@ fun MoreMenuScreen(
                     onClick = { onNavigate("stretch") },
                     showDivider = false
                 )
+            }
+        }
+
+        if (user.role == "admin") {
+            item {
+                IOSSection(title = "ADMINISTRATION") {
+                    IOSRow(
+                        icon = Icons.Filled.AdminPanelSettings,
+                        title = "Admin Panel",
+                        onClick = { onNavigate("admin_panel") },
+                        showDivider = false
+                    )
+                }
             }
         }
     }

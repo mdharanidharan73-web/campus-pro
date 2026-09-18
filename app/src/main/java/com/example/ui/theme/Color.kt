@@ -3,21 +3,25 @@ package com.example.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Apple-inspired iOS Light Palette
-val ios_light_systemBackground = Color(0xFFF2F2F7) // Grouped list background
-val ios_light_secondarySystemBackground = Color(0xFFFFFFFF) // Surface / Card
-val ios_light_label = Color(0xFF000000)
-val ios_light_secondaryLabel = Color(0xFF8E8E93)
-val ios_light_separator = Color(0xFFC6C6C8) // Outline / Divider
-val ios_light_primary = Color(0xFF007AFF)
+val ios_light_systemBackground = Color(0xFFF6F7FB) // Soft crisp light background
+val ios_light_secondarySystemBackground = Color(0xFFFFFFFF) // Surface / Card white
+val ios_light_surfaceSecondary = Color(0xFFEEF0F4) // Secondary subtle surface
+val ios_light_label = Color(0xFF111827) // Crisp near-black primary text
+val ios_light_secondaryLabel = Color(0xFF4B5563) // Dark gray secondary text
+val ios_light_tertiaryLabel = Color(0xFF9CA3AF) // Medium gray tertiary text
+val ios_light_separator = Color(0xFFE5E7EB) // Subtle gray outline / divider
+val ios_light_primary = Color(0xFF007AFF) // Apple iOS Blue
 val ios_light_error = Color(0xFFFF3B30)
 
 // Apple-inspired iOS Dark Palette
-val ios_dark_systemBackground = Color(0xFF000000) // Pure black background
-val ios_dark_secondarySystemBackground = Color(0xFF1C1C1E) // Elevated Surface / Card
-val ios_dark_label = Color(0xFFFFFFFF)
-val ios_dark_secondaryLabel = Color(0xFF98989F) // Adjusted alpha for visibility
-val ios_dark_separator = Color(0xFF38383A) // Outline / Divider
-val ios_dark_primary = Color(0xFF0A84FF)
+val ios_dark_systemBackground = Color(0xFF0D0F15) // Deep black/slate background
+val ios_dark_secondarySystemBackground = Color(0xFF161A23) // Elevated Surface / Card
+val ios_dark_surfaceSecondary = Color(0xFF1F2432) // Dark secondary surface
+val ios_dark_label = Color(0xFFF9FAFB) // Pure crisp white primary text
+val ios_dark_secondaryLabel = Color(0xFF9CA3AF) // Light gray secondary text
+val ios_dark_tertiaryLabel = Color(0xFF6B7280) // Muted gray tertiary text
+val ios_dark_separator = Color(0xFF262C3A) // Subtle dark outline / divider
+val ios_dark_primary = Color(0xFF0A84FF) // Dark mode iOS Blue
 val ios_dark_error = Color(0xFFFF453A)
 
 

@@ -52,6 +52,7 @@ sealed class CampuProScreen {
     object Roster : CampuProScreen()
     object CRPermissions : CampuProScreen()
     object StretchFeatures : CampuProScreen()
+    object AdminPanel : CampuProScreen()
 
     open val title: String
         get() = when (this) {
@@ -71,6 +72,7 @@ sealed class CampuProScreen {
             is Roster -> "Class Roster"
             is CRPermissions -> "CR Controls"
             is StretchFeatures -> "Smart Campus"
+            is AdminPanel -> "Admin Panel"
         }
 }
 
@@ -94,7 +96,7 @@ enum class CampuProTab(
     CLASSES("Classes", "Attendance", Icons.Default.School, Icons.Default.CheckCircle),
     SCHEDULE("Schedule", "Schedule", Icons.Default.Schedule, Icons.Default.Schedule),
     ATTENDANCE("Attendance", "Rooms", Icons.Default.CheckCircle, Icons.Default.MeetingRoom),
-    MORE("More", "Admin", Icons.Default.MoreHoriz, Icons.Default.AdminPanelSettings)
+    MORE("More", "More", Icons.Default.MoreHoriz, Icons.Default.MoreHoriz)
 }
 
 /**
